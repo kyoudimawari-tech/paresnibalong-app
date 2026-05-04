@@ -19,7 +19,7 @@
         .modal-content { background: #121212; width: 90%; max-width: 400px; padding: 20px; border-radius: 15px; border: 2px solid var(--red); }
     </style>
 </head>
-<body>
+<body onload="initMenu()">
 
 <header>🔴 PARES NI BALONG</header>
 
@@ -29,13 +29,8 @@
     <div id="s1" class="step active">
         <input type="text" id="cust-name" placeholder="Full Name (Required)">
         <input type="tel" id="cust-phone" placeholder="Mobile Number" maxlength="11">
-        
-        <div id="menu-area" style="min-height: 200px; margin-top: 15px; border: 1px dashed #444; padding: 10px;">
-            <p style="text-align:center; color:#666;">Loading menu items...</p>
-        </div>
-        
+        <div id="menu-area" style="min-height: 200px; margin-top: 15px;"></div>
         <div style="background:#000; padding:15px; border-radius:12px; margin-top:15px; border-top:2px solid var(--red);">
-            <div style="display:flex; justify-content:space-between; color:#aaa;"><span>Fee:</span> <span id="fee">₱50.00</span></div>
             <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--red); font-size:1.4rem;"><span>TOTAL:</span> <span>₱<span id="total">0.00</span></span></div>
             <button class="btn" onclick="showReview()">REVIEW ORDER</button>
         </div>
@@ -43,24 +38,24 @@
 
     <div id="s2" class="step">
         <h3 style="text-align:center;">GCASH PAYMENT</h3>
-        <div style="background:#fff; color:#000; padding:15px; border-radius:10px; text-align:center; font-weight:bold;">GCASH: 09XX XXX XXXX</div>
-        <input type="text" id="ref-no" placeholder="13-Digit Ref No." maxlength="13">
+        <div style="background:#fff; color:#000; padding:15px; border-radius:10px; text-align:center; font-weight:bold;">SEND TO: 09XX XXX XXXX</div>
+        <input type="text" id="ref-no" placeholder="Enter 13-Digit Ref No." maxlength="13">
         <button class="btn" onclick="startAIScan()">PLACE ORDER</button>
         <button class="btn" style="background:#444;" onclick="nav('s1')">BACK</button>
     </div>
 
     <div id="s3" class="step" style="text-align:center; padding:60px 0;">
         <h3 id="ai-title">PROCESSING...</h3>
-        <p id="ai-desc">Please wait.</p>
+        <p id="ai-desc">Sending order to Balong. Please wait.</p>
     </div>
 </div>
 
 <div id="modal">
     <div class="modal-content">
         <h3 style="color:var(--red); text-align:center;">ORDER SUMMARY</h3>
-        <div id="summary-list"></div>
-        <button class="btn" onclick="setDelivery('Standard')">CONFIRM ORDER</button>
-        <button class="btn" style="background:#444;" onclick="document.getElementById('modal').style.display='none';">CANCEL</button>
+        <div id="summary-list" style="margin-bottom:15px;"></div>
+        <button class="btn" onclick="nav('s2'); document.getElementById('modal').style.display='none';">PROCEED TO PAYMENT</button>
+        <button class="btn" style="background:#444;" onclick="document.getElementById('modal').style.display='none';">EDIT</button>
     </div>
 </div>
 
@@ -68,91 +63,78 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <script>
-    // 1. MENU DATA (Dito kumukuha ang website)
+    // UPDATED CONFIG MULA SA SCREENSHOT 1511
+    const firebaseConfig = {
+        apiKey: "AIzaSyAd6k-rNXngAhebaKosSz9yh6XfHnZpIAs",
+        authDomain: "pares-ni-balong.firebaseapp.com",
+        databaseURL: "https://pares-ni-balong-default-rtdb.asia-southeast1.firebasedatabase.app/",
+        projectId: "pares-ni-balong",
+        storageBucket: "pares-ni-balong.firebasestorage.app",
+        messagingSenderId: "250075031311",
+        appId: "1:250075031311:web:8c4369113ea967e51c407a"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
     const menuData = {
         "🍜 PARES KANTO": { "Pares w/ Rice": 85, "Regular Overload": 130, "Lechon Overload": 189 },
         "🍱 COMBO": { "Combo Meal (2 Ulams)": 199 },
         "🍳 SILOG": { "Liempo Silog": 129, "Bangus Silog": 129, "Chicken Silog": 129 },
-        "🍚 BUDBOD": { "Budbod Regular": 129, "Budbod Tapa": 199 },
-        "🥗 ALA CARTE": { "Sisig": 180, "Lechon Kawali": 170 },
-        "➕ ADD-ONS": { "Garlic Rice": 15, "Extra Egg": 20, "Bonemarrow": 95 }
+        "🍚 BUDBOD": { "Budbod Regular": 129, "Budbod Tapa": 199 }
     };
 
-    let cart = {}, sub = 0, dFee = 50;
+    let cart = {}, sub = 0;
 
-    // 2. ANG FUNCTION NA NAGLALABAS NG MENU
     function initMenu() {
         const area = document.getElementById('menu-area');
-        area.innerHTML = ""; 
-        try {
-            for(let cat in menuData) {
-                area.innerHTML += `<div class="cat-label">${cat}</div>`;
-                for(let item in menuData[cat]) {
-                    cart[item] = 0;
-                    let cleanId = item.replace(/[^a-zA-Z0-9]/g, ''); 
-                    area.innerHTML += `
-                    <div class="item">
-                        <div><b>${item}</b><br>₱${menuData[cat][item]}</div>
-                        <div class="qty-area">
-                            <button class="qty-btn" onclick="changeQty('${item}', -1, ${menuData[cat][item]})">-</button> 
-                            <span id="q-${cleanId}" style="margin:0 10px;">0</span> 
-                            <button class="qty-btn" onclick="changeQty('${item}', 1, ${menuData[cat][item]})">+</button>
-                        </div>
-                    </div>`;
-                }
+        area.innerHTML = "";
+        for(let cat in menuData) {
+            area.innerHTML += `<div class="cat-label">${cat}</div>`;
+            for(let item in menuData[cat]) {
+                cart[item] = 0;
+                let cleanId = item.replace(/[^a-zA-Z0-9]/g, '');
+                area.innerHTML += `<div class="item">
+                    <div><b>${item}</b><br>₱${menuData[cat][item]}</div>
+                    <div>
+                        <button class="qty-btn" onclick="changeQty('${item}', -1, ${menuData[cat][item]})">-</button>
+                        <span id="q-${cleanId}" style="margin:0 10px;">0</span>
+                        <button class="qty-btn" onclick="changeQty('${item}', 1, ${menuData[cat][item]})">+</button>
+                    </div>
+                </div>`;
             }
-        } catch(e) {
-            area.innerHTML = "<p style='color:red;'>Menu Error: " + e.message + "</p>";
         }
     }
-
-    // 3. FIREBASE SETUP
-    const firebaseConfig = {
-  apiKey: "AIzaSyAd6k-rNXngAhebaKosSz9yh6XfHnZpIAs",
-  authDomain: "pares-ni-balong.firebaseapp.com",
-  // Siguraduhing may asia-southeast1 dahil Singapore ang pinili mo
-  databaseURL: "https://pares-ni-balong-default-rtdb.asia-southeast1.firebasedatabase.app/",
-  projectId: "pares-ni-balong",
-  storageBucket: "pares-ni-balong.firebasestorage.app",
-  messagingSenderId: "250075031311",
-  appId: "1:250075031311:web:8c4369113ea967e51c407a",
-  measurementId: "G-53ZNSCQ97Y"
-};
-
-    // TAKBO AGAD ANG MENU PAGKABUKAS
-    window.onload = function() {
-        initMenu();
-        if (typeof firebase !== 'undefined') {
-            firebase.initializeApp(firebaseConfig);
-            console.log("Firebase Ready!");
-        } else {
-            alert("Firebase Script Error! Check internet or script links.");
-        }
-    };
 
     function changeQty(name, val, price) {
         if (val === -1 && cart[name] <= 0) return;
         cart[name] += val; sub += (val * price);
         let cleanId = name.replace(/[^a-zA-Z0-9]/g, '');
         document.getElementById(`q-${cleanId}`).innerText = cart[name];
-        document.getElementById('total').innerText = (sub + dFee).toFixed(2);
+        document.getElementById('total').innerText = (sub + 50).toFixed(2);
     }
 
-    function nav(id) { document.querySelectorAll('.step').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-    function showReview() { if(sub === 0) return alert("Pili ka muna!"); document.getElementById('modal').style.display='flex'; }
-    function setDelivery(m) { nav('s2'); document.getElementById('modal').style.display='none'; }
-    
+    function showReview() {
+        if(sub === 0) return alert("Pili ka muna!");
+        document.getElementById('modal').style.display='flex';
+    }
+
+    function nav(id) {
+        document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
     function startAIScan() {
+        const name = document.getElementById('cust-name').value;
         const ref = document.getElementById('ref-no').value;
-        if(ref.length < 10) return alert("Invalid Ref No.");
+        if(!name || !ref) return alert("Fill up all fields!");
         nav('s3');
-        const id = "PB-" + Date.now().toString().slice(-6);
-        firebase.database().ref('orders/' + id).set({
-            name: document.getElementById('cust-name').value || "Guest",
-            items: cart, total: (sub+dFee).toFixed(2), ref: ref, status: "pending"
+        const id = "PB-" + Date.now().toString().slice(-4);
+        db.ref('orders/' + id).set({
+            name: name, items: cart, total: (sub+50).toFixed(2), ref: ref, status: "pending"
         }).then(() => {
-            document.getElementById('ai-title').innerText = "SENT!";
-            document.getElementById('ai-desc').innerText = "Order received by Balong.";
+            document.getElementById('ai-title').innerText = "ORDER SENT!";
+            document.getElementById('ai-desc').innerText = "ID: " + id + ". Check Dashboard!";
         });
     }
 </script>
