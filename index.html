@@ -4,108 +4,209 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pares Ni Balong | Official Menu</title>
-    
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-    
     <style>
-        :root { --gold: #ffcc00; --red: #ff3131; --bg: #121212; --card: #1e1e1e; }
-        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; padding: 10px; margin: 0; }
-        .container { max-width: 480px; margin: auto; background: var(--card); padding: 15px; border-radius: 20px; border: 2px solid var(--gold); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        h2 { color: var(--gold); text-align: center; margin: 0; text-transform: uppercase; font-size: 1.5rem; letter-spacing: 1px; }
-        #status-bar { background: #333; padding: 8px; border-radius: 10px; text-align: center; font-size: 0.75rem; border: 1px solid var(--gold); margin: 10px 0; }
+        :root { --red: #e60000; --dark-red: #8b0000; --black: #000000; --card: #121212; --white: #ffffff; }
+        body { background: var(--black); color: var(--white); font-family: 'Segoe UI', sans-serif; padding: 10px; margin: 0; }
+        .container { max-width: 480px; margin: auto; background: var(--card); padding: 15px; border-radius: 15px; border: 2px solid var(--red); }
+        h2 { color: var(--red); text-align: center; margin: 0; text-transform: uppercase; font-size: 1.5rem; letter-spacing: 2px; }
+        #status-bar { background: #1a1a1a; padding: 10px; border-radius: 8px; text-align: center; font-size: 0.8rem; border: 1px solid var(--dark-red); margin: 10px 0; color: #ccc; }
         
-        /* Menu Styling */
-        .cat-label { background: var(--red); color: white; font-weight: bold; font-size: 0.8rem; margin: 15px 0 8px 0; padding: 5px 12px; border-radius: 50px; display: inline-block; text-transform: uppercase; }
-        .item { display: flex; justify-content: space-between; align-items: center; background: #262626; padding: 10px; border-radius: 12px; margin-bottom: 6px; border-bottom: 1px solid #333; }
-        .item-info { flex: 1; }
-        .item-name { font-size: 0.95rem; font-weight: bold; display: block; }
-        .item-price { color: var(--gold); font-size: 0.85rem; }
+        .cat-label { background: var(--red); color: white; font-weight: bold; font-size: 0.8rem; margin: 15px 0 8px 0; padding: 6px 12px; border-radius: 4px; display: inline-block; }
+        .item { display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 12px; border-radius: 10px; margin-bottom: 6px; border: 1px solid #333; }
+        .item-name { font-size: 0.95rem; font-weight: bold; display: block; color: var(--white); }
+        .item-price { color: var(--red); font-size: 0.85rem; font-weight: bold; }
         
-        /* Quantity Buttons */
-        .qty-area { display: flex; align-items: center; gap: 10px; }
-        .qty-btn { background: var(--gold); border: none; width: 30px; height: 30px; border-radius: 8px; font-weight: bold; font-size: 1.2rem; cursor: pointer; color: black; display: flex; align-items: center; justify-content: center; }
-        .qty-num { font-weight: bold; min-width: 20px; text-align: center; font-size: 1.1rem; }
+        .qty-btn { background: var(--red); border: none; width: 35px; height: 35px; border-radius: 8px; font-weight: bold; color: white; cursor: pointer; font-size: 1.2rem; }
+        .qty-num { font-weight: bold; min-width: 30px; text-align: center; font-size: 1.1rem; }
         
-        .btn { width: 100%; padding: 16px; background: var(--gold); border: none; border-radius: 15px; font-weight: bold; cursor: pointer; margin-top: 10px; color: #000; font-size: 1rem; text-transform: uppercase; }
+        .btn { width: 100%; padding: 16px; background: var(--red); border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; color: white; font-size: 1rem; text-transform: uppercase; }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        
         .step { display: none; } .active { display: block; }
-        input { width: 100%; padding: 14px; margin-top: 10px; border-radius: 10px; background: #000; color: white; border: 1px solid #444; box-sizing: border-box; font-size: 1rem; }
+        input { width: 100%; padding: 14px; margin-top: 10px; border-radius: 8px; background: #1a1a1a; color: white; border: 1px solid var(--dark-red); box-sizing: border-box; }
         
-        .info-box { background: #262626; padding: 15px; border-radius: 15px; margin-top: 15px; border: 1px solid var(--gold); }
-        .scroll-area { max-height: 55vh; overflow-y: auto; padding-right: 5px; margin-top: 10px; }
-        .free-tag { background: #4caf50; color: white; font-size: 0.6rem; padding: 2px 5px; border-radius: 4px; margin-left: 5px; vertical-align: middle; }
+        .info-box { background: #000; padding: 15px; border-radius: 12px; margin-top: 15px; border-top: 2px solid var(--red); }
+        .scroll-area { max-height: 50vh; overflow-y: auto; padding-right: 5px; }
+
+        /* MODAL */
+        #modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:100; justify-content:center; align-items:center; }
+        .modal-content { background:var(--card); width:90%; max-width:400px; padding:20px; border-radius:15px; border:2px solid var(--red); }
+        .modal-item { display:flex; justify-content:space-between; font-size:0.9rem; margin-bottom:5px; border-bottom: 1px solid #222; padding-bottom:5px; }
     </style>
 </head>
 <body onload="detectGPS()">
 
+<div id="modal">
+    <div class="modal-content">
+        <h3 style="color:var(--red); text-align:center; margin-top:0;">REVIEW ORDER</h3>
+        <div id="summary-list" style="max-height:300px; overflow-y:auto; margin-bottom:15px;"></div>
+        <hr style="border:0; border-top:1px solid #444;">
+        <div id="summary-total" style="font-weight:bold; font-size:1.2rem; text-align:right; color:var(--red);"></div>
+        <button class="btn" onclick="nav('s2'); document.getElementById('modal').style.display='none';">PROCEED TO GCASH</button>
+        <button class="btn" style="background:#333;" onclick="document.getElementById('modal').style.display='none'">EDIT ORDER</button>
+    </div>
+</div>
+
 <div class="container">
     <h2>PARES NI BALONG</h2>
-    <div id="status-bar">🛰️ Kinukuha ang lokasyon para sa delivery fee...</div>
+    <div id="status-bar">🛰️ Initializing GPS...</div>
 
     <div id="s1" class="step active">
-        <input type="text" id="cust-name" placeholder="Pangalan ng Customer (Required)">
-        
-        <div class="scroll-area" id="menu-area">
-            </div>
-
+        <input type="text" id="cust-name" placeholder="Pangalan ng Customer...">
+        <div class="scroll-area" id="menu-area"></div>
         <div class="info-box">
-            <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
+            <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#aaa;">
                 <span>Delivery Fee:</span><span id="fee">₱0.00</span>
             </div>
-            <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--gold); font-size:1.4rem; margin-top:5px;">
-                <span>KABUUAN:</span><span>₱<span id="total">0.00</span></span>
+            <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--red); font-size:1.4rem; margin-top:8px;">
+                <span>TOTAL:</span><span>₱<span id="total">0.00</span></span>
             </div>
         </div>
-        <button class="btn" id="btn-next" onclick="validateStep1()" disabled style="opacity:0.5;">WAITING FOR GPS...</button>
+        <button class="btn" id="btn-next" onclick="showReview()" disabled>WAITING FOR GPS...</button>
     </div>
 
     <div id="s2" class="step">
-        <h3 style="color:var(--gold); text-align:center;">GCASH PAYMENT</h3>
-        <div style="text-align:center; background:white; color:black; padding:15px; border-radius:12px; font-weight:bold; margin-bottom:15px;">
-            SEND TO: 09XX XXX XXXX<br>NAME: DAVID KURT L.
+        <h3 style="color:var(--red); text-align:center;">GCASH PAYMENT</h3>
+        <div style="background:#fff; color:#000; padding:15px; border-radius:10px; text-align:center; font-weight:bold; margin-bottom:15px;">
+            SEND TO: 09XX XXX XXXX<br>NAME: BALONG
         </div>
-        
-        <input type="text" id="ref-no" placeholder="13-Digit Reference No." maxlength="13">
-        <p style="font-size:0.85rem; margin:15px 0 5px; color:var(--gold);">I-upload ang Screenshot ng Resibo:</p>
-        <input type="file" id="receipt-file" accept="image/*" style="border: 1px dashed var(--gold); padding: 20px;">
-        
+        <input type="text" id="ref-no" placeholder="13-Digit Ref No." maxlength="13">
+        <p style="font-size:0.8rem; margin:15px 0 5px; color:var(--red);">Upload GCash Screenshot:</p>
+        <input type="file" id="receipt-file" accept="image/*" style="padding:10px; border:1px dashed var(--red);">
         <button class="btn" onclick="startAIScan()">VERIFY & PLACE ORDER</button>
-        <button class="btn" style="background:#444; color:white;" onclick="nav('s1')">BUMALIK</button>
+        <button class="btn" style="background:#333;" onclick="nav('s1')">BACK</button>
     </div>
 
     <div id="s3" class="step">
         <div style="text-align:center; padding:30px 0;">
-            <div id="ai-icon" style="font-size:4rem; margin-bottom:15px;">🤖</div>
-            <h3 id="ai-title" style="color:var(--gold); margin:0;">AI SCANNING...</h3>
-            <p id="ai-desc" style="color:#aaa; font-size:0.9rem;">Binabasa ang Reference No, Petsa, at Pangalan...</p>
+            <div id="ai-icon" style="font-size:4rem;">🤖</div>
+            <h3 id="ai-title" style="color:var(--red);">AI SCANNING...</h3>
+            <p id="ai-desc">Checking your receipt...</p>
             <div id="lalamove-area"></div>
         </div>
     </div>
 </div>
 
 <script>
-    const shopLat = 14.7176, shopLon = 121.0501; // Shop Location
+    const shopLat = 14.7176, shopLon = 121.0501;
     let dFee = 0, sub = 0, cart = {};
 
-    // FIREBASE CONFIG
     const firebaseConfig = { apiKey: "AIzaSyBEkhDhIFcCltfr13S8XkZptaxxCjK_OMs", authDomain: "pares-ni-balong-749a0.firebaseapp.com", databaseURL: "https://pares-ni-balong-749a0-default-rtdb.firebaseio.com", projectId: "pares-ni-balong-749a0", storageBucket: "pares-ni-balong-749a0.firebasestorage.app", messagingSenderId: "713855678812", appId: "1:713855678812:web:44d46c08dd9dca1c336999" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // MENU DATABASE
     const menuData = {
-        "PARES KANTO STYLE": { "Pares No Rice": 75, "Pares w/ Rice": 85, "Pares w/ Tumbong": 130, "Pares w/ Bagnet": 130, "Pares w/ Chichabu": 130, "Regular Overload": 130, "Lechon Overload": 189 },
+        "PARES KANTO": { "Pares No Rice": 75, "Pares w/ Rice": 85, "Pares w/ Tumbong": 130, "Pares w/ Bagnet": 130, "Pares w/ Chichabu": 130, "Regular Overload": 130, "Lechon Overload": 189 },
         "BEEF MAMI": { "Mami w/ Rice": 60, "Mami No Rice": 50, "Mami w/ Bagnet": 130, "Mami w/ Chichabu": 130, "Mami w/ Tumbong": 130, "Mami Overload": 199 },
-        "PARES RETIRO STYLE": { "Retiro w/ Rice": 95, "Retiro w/ Bagnet": 150, "Retiro w/ Chichabu": 150, "Retiro Overload": 199 },
-        "COMBO & SILOG": { "Combo Meal (2 Ulam)": 199, "Lechon Silog": 129, "Liempo Silog": 129, "Chichabu Silog": 129, "Bangus Silog": 129, "Chicken Silog": 129, "Sisig Silog": 129, "Beef Tapa Silog": 129, "Tocino Silog": 129, "Longganisa Silog": 129, "Lumpiang Isda Silog": 129 },
+        "PARES RETIRO": { "Retiro w/ Rice": 95, "Retiro w/ Bagnet": 150, "Retiro w/ Chichabu": 150, "Retiro Overload": 199 },
+        "HOMEMADE SILOG": { "Lechon Silog": 129, "Liempo Silog": 129, "Chichabu Silog": 129, "Bangus Silog": 129, "Chicken Silog": 129, "Sisig Silog": 129, "Lumpiang Isda Silog": 129, "Beef Tapa Silog": 129, "Tocino Silog": 129, "Longganisa Silog": 129 },
         "BUDBOD MEALS": { "Budbod Regular": 129, "Budbod Tapa": 199, "Budbod Tocino": 199, "Budbod Longganisa": 199, "Budbod Lumpiang Isda": 199 },
-        "ALA CARTE": { "Kare-Kare Bagnet": 170, "Kare-Kare Chichabu": 170, "Dinakdakan": 170, "Sisig Ala Carte": 180, "Chicharon Bulaklak": 170, "Lechon Kawali": 170 },
-        "ADD-ONS": { "Garlic Rice": 15, "Half Rice": 10, "Extra Egg": 20, "Bone Marrow": 95, "Softdrinks": 25, "Extra Bagoong": 15, "Kamatis Sibuyas": 25, "Lechon Sauce": 10 },
+        "ALA CARTE": { "Kare-Kare Bagnet": 170, "Kare-Kare Chichabu": 170, "Dinakdakan": 170, "Sisig Ala Carte": 180, "Lumpiang Isda Ala Carte": 160, "Chicharon Bulaklak": 170, "Lechon Kawali": 170 },
+        "ADD-ONS": { "Garlic Rice": 15, "Half Rice": 10, "Extra Bagoong": 15, "Softdrinks": 25, "Bone Marrow": 95, "Kamatis Sibuyas Bagoong": 25, "Lechon Sauce": 10, "Extra Egg": 20 },
         "FREEBIES": { "Chili Oil": 0, "Calamansi": 0, "Ketchup": 0 }
     };
 
     function initMenu() {
+        const area = document.getElementById('menu-area');
+        area.innerHTML = "";
+        for(let cat in menuData) {
+            area.innerHTML += `<div class="cat-label">${cat}</div>`;
+            for(let item in menuData[cat]) {
+                cart[item] = 0;
+                area.innerHTML += `<div class="item">
+                    <div><span class="item-name">${item}</span><span class="item-price">₱${menuData[cat][item]}</span></div>
+                    <div class="qty-area">
+                        <button class="qty-btn" onclick="changeQty('${item}', -1, ${menuData[cat][item]})">−</button>
+                        <span class="qty-num" id="q-${item.replace(/\s/g,'')}">0</span>
+                        <button class="qty-btn" onclick="changeQty('${item}', 1, ${menuData[cat][item]})">+</button>
+                    </div>
+                </div>`;
+            }
+        }
+    }
+
+    function changeQty(name, val, price) {
+        if(val === -1 && cart[name] <= 0) return;
+        cart[name] += val;
+        sub += (val * price);
+        document.getElementById('q-'+name.replace(/\s/g,'')).innerText = cart[name];
+        updateTotal();
+    }
+
+    function showReview() {
+        if(document.getElementById('cust-name').value.length < 2) return alert("Pakilagay ang pangalan!");
+        if(sub <= 0) return alert("Pumili muna ng order!");
+        
+        let list = "";
+        for(let item in cart) {
+            if(cart[item] > 0) list += `<div class="modal-item"><span>${cart[item]}x ${item}</span><span>₱${(cart[item] * getPrice(item)).toFixed(2)}</span></div>`;
+        }
+        list += `<div class="modal-item" style="color:#aaa;"><span>Delivery Fee</span><span>₱${dFee.toFixed(2)}</span></div>`;
+        
+        document.getElementById('summary-list').innerHTML = list;
+        document.getElementById('summary-total').innerText = "TOTAL: ₱" + (sub + dFee).toFixed(2);
+        document.getElementById('modal').style.display = 'flex';
+    }
+
+    function getPrice(name) {
+        for(let cat in menuData) if(menuData[cat][name] !== undefined) return menuData[cat][name];
+        return 0;
+    }
+
+    function updateTotal() { document.getElementById('total').innerText = (sub + dFee).toFixed(2); }
+    function nav(id) { document.querySelectorAll('.step').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+
+    function detectGPS() {
+        initMenu();
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(p => {
+                const uLat = p.coords.latitude, uLon = p.coords.longitude;
+                const dist = 6371 * 2 * Math.atan2(Math.sqrt(Math.sin(((uLat-shopLat)*Math.PI/180)/2)**2 + Math.cos(shopLat*Math.PI/180)*Math.cos(uLat*Math.PI/180)*Math.sin(((uLon-shopLon)*Math.PI/180)/2)**2), Math.sqrt(1-(Math.sin(((uLat-shopLat)*Math.PI/180)/2)**2 + Math.cos(shopLat*Math.PI/180)*Math.cos(uLat*Math.PI/180)*Math.sin(((uLon-shopLon)*Math.PI/180)/2)**2)));
+                dFee = 20 + (5 * Math.ceil(dist));
+                document.getElementById('status-bar').innerHTML = `📍 Distance: ${dist.toFixed(2)}km | Fee: ₱${dFee.toFixed(2)}`;
+                document.getElementById('fee').innerText = "₱" + dFee.toFixed(2);
+                document.getElementById('btn-next').disabled = false; document.getElementById('btn-next').innerText = "REVIEW ORDER";
+                updateTotal();
+            }, () => { 
+                document.getElementById('status-bar').innerHTML = "⚠️ GPS Blocked. Fixed Fee: ₱50.00";
+                dFee = 50; document.getElementById('btn-next').disabled = false; document.getElementById('btn-next').innerText = "REVIEW ORDER";
+                updateTotal();
+            });
+        }
+    }
+
+    async function startAIScan() {
+        const refInput = document.getElementById('ref-no').value;
+        const file = document.getElementById('receipt-file').files[0];
+        if(refInput.length < 10 || !file) return alert("Kulang ang info!");
+        nav('s3');
+        try {
+            const worker = await Tesseract.createWorker('eng');
+            const { data: { text } } = await worker.recognize(file);
+            await worker.terminate();
+            saveOrder(refInput, text.toLowerCase().includes(refInput.toLowerCase()) ? "Verified" : "Manual Check Needed");
+        } catch (e) { saveOrder(refInput, "Scan Error"); }
+    }
+
+    function saveOrder(ref, ai) {
+        const id = "PB-" + Math.floor(1000 + Math.random()*9000);
+        db.ref('orders/' + id).set({
+            customerName: document.getElementById('cust-name').value,
+            items: cart, total: (sub+dFee).toFixed(2), refNo: ref, aiCheck: ai, status: "pending", timestamp: Date.now()
+        });
+        db.ref('orders/' + id).on('value', s => {
+            if(s.val() && s.val().status === "accepted") {
+                document.getElementById('ai-title').innerText = "👨‍🍳 ACCEPTED!";
+                document.getElementById('lalamove-area').innerHTML = `<button class="btn" onclick="window.location.href='https://www.lalamove.com/en-ph/'">🚀 BOOK LALAMOVE</button>`;
+            }
+        });
+    }
+</script>
+</body>
+</html>    function initMenu() {
         const area = document.getElementById('menu-area');
         area.innerHTML = "";
         for(let cat in menuData) {
