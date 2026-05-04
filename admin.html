@@ -1,45 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Balong Admin | Smart Dashboard</title>
+    <title>Balong Smart Admin</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <style>
-        :root { --red: #e60000; --dark-red: #8b0000; --black: #000000; --card: #121212; --white: #ffffff; --green: #4caf50; }
-        body { background: var(--black); color: var(--white); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
-        header { background: var(--red); padding: 15px; text-align: center; font-weight: bold; font-size: 1.2rem; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .container { padding: 15px; max-width: 600px; margin: auto; }
-        
-        .order-card { background: var(--card); border: 1px solid #333; border-radius: 12px; padding: 15px; margin-bottom: 20px; border-left: 6px solid var(--red); position: relative; animation: slideIn 0.3s ease-out; }
-        .cust-name { font-size: 1.2rem; font-weight: bold; color: var(--red); text-transform: uppercase; }
-        
-        .item-box { background: #1a1a1a; padding: 10px; border-radius: 8px; margin: 10px 0; }
-        .item-row { display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 5px; border-bottom: 1px solid #222; padding-bottom: 3px; }
-        
-        /* AI SCANNING DISPLAY */
-        .ai-panel { background: #000; padding: 12px; border-radius: 8px; border: 1px solid #333; margin: 10px 0; }
-        .confidence-bar { height: 8px; background: #222; border-radius: 10px; margin-top: 8px; overflow: hidden; }
-        .confidence-fill { height: 100%; background: var(--green); transition: width 1s ease-in-out; }
-        .ai-status-text { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: bold; }
-        
-        .actions { display: flex; gap: 8px; margin-top: 15px; }
-        .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 0.8rem; }
-        .btn-accept { background: var(--green); color: white; }
-        .btn-reject { background: var(--red); color: white; }
-        .btn-done { background: #555; color: white; }
-
-        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        body { background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; margin: 0; }
+        header { background: #e60000; padding: 15px; text-align: center; font-weight: bold; font-size: 1.2rem; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .order-card { background: #1a1a1a; margin: 15px; padding: 15px; border-radius: 12px; border-left: 6px solid #e60000; transition: 0.3s; }
+        .pending { border-left-color: #ffc107; }
+        .accepted { border-left-color: #4caf50; opacity: 0.8; }
+        .btn-accept { background: #4caf50; color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .combo-info { color: #ffeb3b; font-size: 0.85rem; background: #222; padding: 8px; margin: 5px 0; border-radius: 6px; font-style: italic; }
+        .meta-info { font-size: 0.8rem; color: #aaa; margin-top: 10px; border-top: 1px solid #333; padding-top: 10px; }
     </style>
 </head>
 <body>
 
 <header>🔴 BALONG SMART ADMIN</header>
-<audio id="notif-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
-
-<div class="container">
-    <div id="orders-list"></div>
+<div id="admin-list">
+    <p style="text-align:center; margin-top:50px; color:#555;">Waiting for new orders...</p>
 </div>
 
 <script>
@@ -55,72 +35,58 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let lastCount = 0;
-
     db.ref('orders').orderByChild('timestamp').on('value', snapshot => {
-        const list = document.getElementById('orders-list');
-        let currentOrders = [];
-        snapshot.forEach(c => currentOrders.push({id: c.key, ...c.val()}));
-
-        if(currentOrders.length > lastCount && lastCount !== 0) document.getElementById('notif-sound').play();
-        lastCount = currentOrders.length;
-
+        const list = document.getElementById('admin-list');
         list.innerHTML = "";
-        currentOrders.reverse().forEach(order => {
-            if(order.status === "completed") return;
+        
+        let ordersArray = [];
+        snapshot.forEach(child => {
+            ordersArray.push({ id: child.key, ...child.val() });
+        });
 
-            // CALCULATE AI SCORE
-            // Kung status ay "Verified", assume natin 100%. Kung "Manual Check", ibaba natin ang score.
-            let aiScore = 0;
-            if(order.aiCheck === "Verified") aiScore = 100;
-            else if(order.aiCheck === "Manual Check Needed") aiScore = 50;
-            else aiScore = 0;
-
-            // AUTO ACCEPT LOGIC
-            if(aiScore === 100 && order.status === "pending") {
-                updateStatus(order.id, 'accepted', true);
+        // Pakita ang pinakabago sa taas
+        ordersArray.reverse().forEach(order => {
+            let itemsHtml = "";
+            for(let key in order.items) {
+                if(order.items[key] > 0) itemsHtml += `<div style="display:flex; justify-content:space-between;"><span>${order.items[key]}x ${key}</span></div>`;
             }
 
-            let itemsHtml = "";
-            for(let i in order.items) if(order.items[i] > 0) itemsHtml += `<div class="item-row"><span>${order.items[i]}x ${i}</span></div>`;
+            let comboHtml = "";
+            if(order.combos) {
+                order.combos.forEach(c => {
+                    comboHtml += `<div class="combo-info">└─ ${c}</div>`;
+                });
+            }
 
             list.innerHTML += `
-                <div class="order-card">
-                    <div class="cust-name">${order.customerName}</div>
-                    <div class="item-box">${itemsHtml}</div>
+                <div class="order-card ${order.status}">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <b style="font-size:1.1rem;">${order.name}</b>
+                        <span style="background:${order.status === 'pending' ? '#ffc107' : '#4caf50'}; color:#000; padding:2px 8px; border-radius:4px; font-size:0.7rem; font-weight:bold;">
+                            ${order.status.toUpperCase()}
+                        </span>
+                    </div>
+                    <div style="margin:10px 0;">
+                        ${itemsHtml}
+                        ${comboHtml}
+                    </div>
+                    <div style="color:#4caf50; font-weight:bold; font-size:1.2rem;">Total: ₱${order.total}</div>
                     
-                    <div class="ai-panel">
-                        <div class="ai-status-text">
-                            <span>AI APPROVAL RATING:</span>
-                            <span style="color:${aiScore === 100 ? '#4caf50' : '#ff9800'}">${aiScore}%</span>
-                        </div>
-                        <div class="confidence-bar">
-                            <div class="confidence-fill" style="width:${aiScore}%"></div>
-                        </div>
-                        <div style="font-size:0.7rem; margin-top:5px; color:#888;">Ref No: ${order.refNo}</div>
+                    <div class="meta-info">
+                        Ref: <span style="color:#fff;">${order.ref}</span> | Method: <span style="color:#fff;">${order.method}</span><br>
+                        <a href="tel:${order.phone}" style="color:#03a9f4; text-decoration:none; display:inline-block; margin-top:8px;">📞 Call Customer: ${order.phone}</a>
                     </div>
 
-                    <div style="text-align:right; font-weight:bold; color:var(--red);">₱${order.total}</div>
-
-                    <div class="actions">
-                        ${order.status === 'pending' ? 
-                            `<button class="btn btn-accept" onclick="updateStatus('${order.id}', 'accepted')">Accept</button>
-                             <button class="btn btn-reject" onclick="cancelOrder('${order.id}')">Reject</button>` :
-                            `<button class="btn btn-done" onclick="updateStatus('${order.id}', 'completed')">Done / Served</button>`
-                        }
-                    </div>
+                    ${order.status === 'pending' ? `<button class="btn-accept" onclick="acceptOrder('${order.id}')">ACCEPT ORDER</button>` : ''}
                 </div>
             `;
         });
     });
 
-    function updateStatus(id, newStatus, isAuto = false) {
-        db.ref('orders/' + id).update({ status: newStatus });
-        if(!isAuto && newStatus === 'accepted') alert("Order Accepted!");
-    }
-
-    function cancelOrder(id) {
-        if(confirm("I-reject ang order na ito?")) db.ref('orders/' + id).remove();
+    function acceptOrder(id) {
+        if(confirm("Lulutuin na ba ito?")) {
+            db.ref('orders/' + id).update({ status: "accepted" });
+        }
     }
 </script>
 </body>
