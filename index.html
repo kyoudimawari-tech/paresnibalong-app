@@ -3,130 +3,223 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pares Ni Balong | Live Ordering</title>
+    <title>Pares Ni Balong | Official Menu</title>
+    
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    
     <style>
         :root { --gold: #ffcc00; --red: #ff3131; --bg: #121212; --card: #1e1e1e; }
-        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; transition: 0.3s; }
-        body { background-color: var(--bg); color: white; margin: 0; padding: 10px; }
-        .container { max-width: 500px; margin: auto; background: var(--card); padding: 20px; border-radius: 25px; border: 2px solid var(--gold); }
-        h2 { color: var(--gold); text-align: center; text-transform: uppercase; margin: 0; }
-        #status-bar { font-size: 0.75rem; text-align: center; padding: 10px; border-radius: 10px; margin: 15px 0; border: 1px solid var(--gold); }
-        .category-label { background: #333; color: var(--gold); padding: 8px; font-weight: bold; margin: 15px 0 10px 0; border-radius: 5px; font-size: 0.8rem; text-align: center; }
-        .menu-item { display: flex; justify-content: space-between; align-items: center; background: #262626; padding: 12px; border-radius: 12px; margin-bottom: 8px; border-left: 5px solid var(--red); }
-        .qty-ctrl { display: flex; align-items: center; gap: 8px; }
-        .q-btn { width: 32px; height: 32px; border: none; background: var(--gold); font-weight: bold; border-radius: 8px; cursor: pointer; }
-        .btn { width: 100%; padding: 15px; margin-top: 10px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; font-size: 1rem; }
-        .btn-gold { background: var(--gold); color: #000; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; padding: 10px; margin: 0; }
+        .container { max-width: 480px; margin: auto; background: var(--card); padding: 15px; border-radius: 20px; border: 2px solid var(--gold); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h2 { color: var(--gold); text-align: center; margin: 0; text-transform: uppercase; font-size: 1.5rem; letter-spacing: 1px; }
+        #status-bar { background: #333; padding: 8px; border-radius: 10px; text-align: center; font-size: 0.75rem; border: 1px solid var(--gold); margin: 10px 0; }
+        
+        /* Menu Styling */
+        .cat-label { background: var(--red); color: white; font-weight: bold; font-size: 0.8rem; margin: 15px 0 8px 0; padding: 5px 12px; border-radius: 50px; display: inline-block; text-transform: uppercase; }
+        .item { display: flex; justify-content: space-between; align-items: center; background: #262626; padding: 10px; border-radius: 12px; margin-bottom: 6px; border-bottom: 1px solid #333; }
+        .item-info { flex: 1; }
+        .item-name { font-size: 0.95rem; font-weight: bold; display: block; }
+        .item-price { color: var(--gold); font-size: 0.85rem; }
+        
+        /* Quantity Buttons */
+        .qty-area { display: flex; align-items: center; gap: 10px; }
+        .qty-btn { background: var(--gold); border: none; width: 30px; height: 30px; border-radius: 8px; font-weight: bold; font-size: 1.2rem; cursor: pointer; color: black; display: flex; align-items: center; justify-content: center; }
+        .qty-num { font-weight: bold; min-width: 20px; text-align: center; font-size: 1.1rem; }
+        
+        .btn { width: 100%; padding: 16px; background: var(--gold); border: none; border-radius: 15px; font-weight: bold; cursor: pointer; margin-top: 10px; color: #000; font-size: 1rem; text-transform: uppercase; }
         .step { display: none; } .active { display: block; }
-        input, select { width: 100%; padding: 12px; margin-top: 8px; border-radius: 8px; background: #000; color: white; border: 1px solid #444; }
+        input { width: 100%; padding: 14px; margin-top: 10px; border-radius: 10px; background: #000; color: white; border: 1px solid #444; box-sizing: border-box; font-size: 1rem; }
+        
+        .info-box { background: #262626; padding: 15px; border-radius: 15px; margin-top: 15px; border: 1px solid var(--gold); }
+        .scroll-area { max-height: 55vh; overflow-y: auto; padding-right: 5px; margin-top: 10px; }
+        .free-tag { background: #4caf50; color: white; font-size: 0.6rem; padding: 2px 5px; border-radius: 4px; margin-left: 5px; vertical-align: middle; }
     </style>
 </head>
-<body onload="autoDetect()">
+<body onload="detectGPS()">
 
 <div class="container">
     <h2>PARES NI BALONG</h2>
-    
-    <div id="status-bar">🛰️ Initializing GPS...</div>
+    <div id="status-bar">🛰️ Kinukuha ang lokasyon para sa delivery fee...</div>
 
     <div id="s1" class="step active">
-        <div id="menu-list" style="max-height: 50vh; overflow-y: auto;"></div>
+        <input type="text" id="cust-name" placeholder="Pangalan ng Customer (Required)">
         
-        <div style="background:#262626; padding:15px; border-radius:12px; margin-top:15px; border: 1px solid var(--gold);">
-            <div style="display:flex; justify-content:space-between; font-size: 0.85rem;">
-                <span>Delivery Fee (₱20+₱5/km):</span>
-                <span id="fee-display">₱0.00</span>
+        <div class="scroll-area" id="menu-area">
             </div>
-            <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--gold); font-size:1.3rem; margin-top:5px;">
-                <span>TOTAL:</span><span>₱<span id="final-total">0.00</span></span>
+
+        <div class="info-box">
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
+                <span>Delivery Fee:</span><span id="fee">₱0.00</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--gold); font-size:1.4rem; margin-top:5px;">
+                <span>KABUUAN:</span><span>₱<span id="total">0.00</span></span>
             </div>
         </div>
-        <button class="btn btn-gold" id="btn-next" onclick="nav('s2')" disabled style="opacity:0.5;">WAITING FOR GPS...</button>
+        <button class="btn" id="btn-next" onclick="validateStep1()" disabled style="opacity:0.5;">WAITING FOR GPS...</button>
     </div>
 
     <div id="s2" class="step">
-        <h4 style="color:var(--gold); text-align:center;">GCASH PAYMENT</h4>
-        <div style="background:#fff; color:#000; padding:15px; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:15px;">
-            GCASH: 09XX XXX XXXX (BALONG)
+        <h3 style="color:var(--gold); text-align:center;">GCASH PAYMENT</h3>
+        <div style="text-align:center; background:white; color:black; padding:15px; border-radius:12px; font-weight:bold; margin-bottom:15px;">
+            SEND TO: 09XX XXX XXXX<br>NAME: DAVID KURT L.
         </div>
-        <input type="text" id="ref-no" placeholder="13-Digit GCash Ref No." maxlength="13">
-        <input type="file" id="receipt" accept="image/*" style="margin-top:10px;">
-        <button class="btn btn-gold" onclick="sendOrder()">SEND TO BALONG</button>
-        <button class="btn" style="background:#333; color:white;" onclick="nav('s1')">BACK</button>
+        
+        <input type="text" id="ref-no" placeholder="13-Digit Reference No." maxlength="13">
+        <p style="font-size:0.85rem; margin:15px 0 5px; color:var(--gold);">I-upload ang Screenshot ng Resibo:</p>
+        <input type="file" id="receipt-file" accept="image/*" style="border: 1px dashed var(--gold); padding: 20px;">
+        
+        <button class="btn" onclick="startAIScan()">VERIFY & PLACE ORDER</button>
+        <button class="btn" style="background:#444; color:white;" onclick="nav('s1')">BUMALIK</button>
     </div>
 
     <div id="s3" class="step">
-        <div style="text-align:center; padding:40px 0;">
-            <div id="status-icon" style="font-size:4rem;">⏳</div>
-            <h3 id="status-title" style="color:var(--gold);">ORDER SENT</h3>
-            <p id="status-msg">Wait lang, Balong is checking your payment.</p>
+        <div style="text-align:center; padding:30px 0;">
+            <div id="ai-icon" style="font-size:4rem; margin-bottom:15px;">🤖</div>
+            <h3 id="ai-title" style="color:var(--gold); margin:0;">AI SCANNING...</h3>
+            <p id="ai-desc" style="color:#aaa; font-size:0.9rem;">Binabasa ang Reference No, Petsa, at Pangalan...</p>
+            <div id="lalamove-area"></div>
         </div>
     </div>
 </div>
 
 <script>
-    // BALONG'S SHOP COORDINATES
-    const shopX = 14.7176, shopY = 121.0501;
-    let dist = 0, dFee = 0, sub = 0, cart = {};
-    const orderID = "PB-" + Math.floor(1000 + Math.random()*9000);
+    const shopLat = 14.7176, shopLon = 121.0501; // Shop Location
+    let dFee = 0, sub = 0, cart = {};
 
+    // FIREBASE CONFIG
     const firebaseConfig = { apiKey: "AIzaSyBEkhDhIFcCltfr13S8XkZptaxxCjK_OMs", authDomain: "pares-ni-balong-749a0.firebaseapp.com", databaseURL: "https://pares-ni-balong-749a0-default-rtdb.firebaseio.com", projectId: "pares-ni-balong-749a0", storageBucket: "pares-ni-balong-749a0.firebasestorage.app", messagingSenderId: "713855678812", appId: "1:713855678812:web:44d46c08dd9dca1c336999" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const menu = {
-        "BEST SELLERS": { "Pares w/ Rice": 85, "Beef Mami With Rice": 60, "Lechon Pares Overload": 189 },
-        "SILOG MEALS": { "Lechon Silog": 129, "Liempo Silog": 129, "Chicken Silog": 129 },
-        "ADD-ONS": { "Garlic Rice": 15, "Extra Egg": 20, "Softdrinks": 25 }
+    // MENU DATABASE
+    const menuData = {
+        "PARES KANTO STYLE": { "Pares No Rice": 75, "Pares w/ Rice": 85, "Pares w/ Tumbong": 130, "Pares w/ Bagnet": 130, "Pares w/ Chichabu": 130, "Regular Overload": 130, "Lechon Overload": 189 },
+        "BEEF MAMI": { "Mami w/ Rice": 60, "Mami No Rice": 50, "Mami w/ Bagnet": 130, "Mami w/ Chichabu": 130, "Mami w/ Tumbong": 130, "Mami Overload": 199 },
+        "PARES RETIRO STYLE": { "Retiro w/ Rice": 95, "Retiro w/ Bagnet": 150, "Retiro w/ Chichabu": 150, "Retiro Overload": 199 },
+        "COMBO & SILOG": { "Combo Meal (2 Ulam)": 199, "Lechon Silog": 129, "Liempo Silog": 129, "Chichabu Silog": 129, "Bangus Silog": 129, "Chicken Silog": 129, "Sisig Silog": 129, "Beef Tapa Silog": 129, "Tocino Silog": 129, "Longganisa Silog": 129, "Lumpiang Isda Silog": 129 },
+        "BUDBOD MEALS": { "Budbod Regular": 129, "Budbod Tapa": 199, "Budbod Tocino": 199, "Budbod Longganisa": 199, "Budbod Lumpiang Isda": 199 },
+        "ALA CARTE": { "Kare-Kare Bagnet": 170, "Kare-Kare Chichabu": 170, "Dinakdakan": 170, "Sisig Ala Carte": 180, "Chicharon Bulaklak": 170, "Lechon Kawali": 170 },
+        "ADD-ONS": { "Garlic Rice": 15, "Half Rice": 10, "Extra Egg": 20, "Bone Marrow": 95, "Softdrinks": 25, "Extra Bagoong": 15, "Kamatis Sibuyas": 25, "Lechon Sauce": 10 },
+        "FREEBIES": { "Chili Oil": 0, "Calamansi": 0, "Ketchup": 0 }
     };
 
-    function autoDetect() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(p => {
-                const uX = p.coords.latitude, uY = p.coords.longitude;
-                const R = 6371;
-                const dLat = (uX-shopX)*Math.PI/180, dLon = (uY-shopY)*Math.PI/180;
-                const a = Math.sin(dLat/2)**2 + Math.cos(shopX*Math.PI/180)*Math.cos(uX*Math.PI/180)*Math.sin(dLon/2)**2;
-                dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                dFee = 20 + (5 * Math.ceil(dist));
-                
-                document.getElementById('status-bar').innerHTML = `📍 <b>${dist.toFixed(2)}km</b> mula sa shop. Fee: ₱${dFee.toFixed(2)}`;
-                document.getElementById('btn-next').disabled = false;
-                document.getElementById('btn-next').style.opacity = "1";
-                document.getElementById('btn-next').innerText = "PROCEED TO PAYMENT ➔";
-                initMenu();
-            }, () => { alert("Please enable GPS to order."); });
-        }
-    }
-
     function initMenu() {
-        const cont = document.getElementById('menu-list');
-        for(let c in menu) {
-            cont.innerHTML += `<div class="category-label">${c}</div>`;
-            for(let i in menu[c]) {
-                cart[i] = 0;
-                cont.innerHTML += `<div class="menu-item"><span>${i}<br>₱${menu[c][i]}</span><div class="qty-ctrl"><button class="q-btn" onclick="upd('${i}',-1)">-</button><span id="q-${i.replace(/\s/g,'')}">0</span><button class="q-btn" onclick="upd('${i}',1)">+</button></div></div>`;
+        const area = document.getElementById('menu-area');
+        area.innerHTML = "";
+        for(let cat in menuData) {
+            area.innerHTML += `<div class="cat-label">${cat}</div>`;
+            for(let item in menuData[cat]) {
+                cart[item] = 0;
+                let price = menuData[cat][item];
+                area.innerHTML += `<div class="item">
+                    <div class="item-info">
+                        <span class="item-name">${item} ${price===0?'<span class="free-tag">FREE</span>':''}</span>
+                        <span class="item-price">₱${price}</span>
+                    </div>
+                    <div class="qty-area">
+                        <button class="qty-btn" onclick="add('${item}', -${price})">−</button>
+                        <span class="qty-num" id="q-${item.replace(/\s/g,'')}">0</span>
+                        <button class="qty-btn" onclick="add('${item}', ${price})">+</button>
+                    </div>
+                </div>`;
             }
         }
     }
 
-    function upd(i,v) { if(cart[i]+v>=0){ cart[i]+=v; document.getElementById('q-'+i.replace(/\s/g,'')).innerText=cart[i]; calc(); } }
-    function calc() {
-        sub = 0; for(let c in menu) for(let i in menu[c]) sub += cart[i]*menu[c][i];
-        document.getElementById('fee-display').innerText = "₱" + dFee.toFixed(2);
-        document.getElementById('final-total').innerText = (sub + dFee).toFixed(2);
+    function add(name, price) {
+        if(price <= 0 && cart[name] <= 0) return;
+        let isAdding = event.target.innerText === '+';
+        cart[name] += isAdding ? 1 : -1;
+        if(price !== 0) sub += isAdding ? Math.abs(price) : -Math.abs(price);
+        document.getElementById('q-'+name.replace(/\s/g,'')).innerText = cart[name];
+        updateTotal();
     }
 
+    function updateTotal() { document.getElementById('total').innerText = (sub + dFee).toFixed(2); }
     function nav(id) { document.querySelectorAll('.step').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
 
-    function sendOrder() {
-        const ref = document.getElementById('ref-no').value;
-        if(ref.length < 10) return alert("Invalid Ref No.");
+    function detectGPS() {
+        initMenu();
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(p => {
+                const uLat = p.coords.latitude, uLon = p.coords.longitude;
+                const R = 6371;
+                const dLat = (uLat-shopLat)*Math.PI/180, dLon = (uLon-shopLon)*Math.PI/180;
+                const a = Math.sin(dLat/2)**2 + Math.cos(shopLat*Math.PI/180)*Math.cos(uLat*Math.PI/180)*Math.sin(dLon/2)**2;
+                const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                dFee = 20 + (5 * Math.ceil(dist));
+                document.getElementById('status-bar').innerHTML = `📍 Distance: <b>${dist.toFixed(2)}km</b> | Fee: ₱${dFee.toFixed(2)}`;
+                document.getElementById('fee').innerText = "₱" + dFee.toFixed(2);
+                document.getElementById('btn-next').disabled = false; document.getElementById('btn-next').style.opacity = "1";
+                updateTotal();
+            }, () => { 
+                document.getElementById('status-bar').innerHTML = "⚠️ Please Enable GPS to Proceed";
+            });
+        }
+    }
+
+    function validateStep1() {
+        if(document.getElementById('cust-name').value.length < 2) return alert("Pakilagay ang iyong pangalan!");
+        if(sub <= 0) return alert("Pumili muna ng order!");
+        nav('s2');
+    }
+
+    async function startAIScan() {
+        const refInput = document.getElementById('ref-no').value;
+        const file = document.getElementById('receipt-file').files[0];
+        if(refInput.length < 10 || !file) return alert("Kulang ang payment details!");
         nav('s3');
-        let items = ""; for(let i in cart) if(cart[i]>0) items += `${i}(${cart[i]}) `;
-        db.ref('orders/'+orderID).set({ orderID, items, total: (sub+dFee).toFixed(2), dist: dist.toFixed(2), ref, status: "pending" });
+        const today = new Date();
+        const curMonth = today.toLocaleString('default', { month: 'short' }).toLowerCase();
+        const curYear = today.getFullYear().toString();
+        try {
+            const worker = await Tesseract.createWorker('eng');
+            const { data: { text } } = await worker.recognize(file);
+            await worker.terminate();
+            const cleanText = text.toLowerCase().replace(/\s/g, '');
+            const refFound = cleanText.includes(refInput.toLowerCase());
+            const dateFound = cleanText.includes(curMonth) && cleanText.includes(curYear);
+            if(refFound && dateFound) { 
+                updateUI("✅ VERIFIED", "Tugma ang Date at Ref No! Wait for Balong's approval.", "✔️"); 
+                saveOrder(refInput, "Verified"); 
+            } else { 
+                updateUI("⚠️ MANUAL CHECK", "May hindi tugma sa resibo. Wait lang po.", "📅"); 
+                saveOrder(refInput, "Manual Check Required"); 
+            }
+        } catch (e) { 
+            updateUI("❗ ERROR", "Hindi mabasa ang resibo. Sinend na kay Balong.", "❓"); 
+            saveOrder(refInput, "Scan Error"); 
+        }
+    }
+
+    function updateUI(t, d, i) {
+        document.getElementById('ai-title').innerText = t;
+        document.getElementById('ai-desc').innerText = d;
+        document.getElementById('ai-icon').innerText = i;
+    }
+
+    function saveOrder(ref, ai) {
+        const id = "PB-" + Math.floor(1000 + Math.random()*9000);
+        const orderRef = db.ref('orders/' + id);
+        orderRef.set({ 
+            customerName: document.getElementById('cust-name').value, 
+            items: cart, 
+            total: (sub+dFee).toFixed(2), 
+            refNo: ref, 
+            aiCheck: ai, 
+            status: "pending", 
+            timestamp: Date.now() 
+        });
+        orderRef.on('value', s => {
+            if(s.val() && s.val().status === "accepted") {
+                updateUI("👨‍🍳 ORDER ACCEPTED!", "Niluluto na! I-book na ang Lalamove.", "✅");
+                document.getElementById('lalamove-area').innerHTML = `
+                    <button class="btn" style="background:#f57c00; color:white; margin-top:20px;" 
+                    onclick="window.location.href='https://www.lalamove.com/en-ph/'">🚀 OPEN LALAMOVE APP</button>`;
+            }
+        });
     }
 </script>
 </body>
