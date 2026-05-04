@@ -17,22 +17,22 @@
         .step { display: none; } .active { display: block; }
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; justify-content: center; align-items: center; }
         .modal-content { background: #121212; width: 90%; max-width: 400px; padding: 20px; border-radius: 15px; border: 2px solid var(--red); }
-        .delivery-box { background: #222; border: 1px solid var(--red); margin-bottom: 8px; text-transform: uppercase; font-size: 0.8rem; }
     </style>
 </head>
-<body onload="detectGPS()">
+<body>
 
 <header>🔴 PARES NI BALONG</header>
 
 <div class="container">
-    <div id="status-bar" style="text-align:center; font-size:0.8rem; color:#aaa; margin-bottom:10px;">📍 Initializing GPS...</div>
+    <div id="status-bar" style="text-align:center; font-size:0.8rem; color:#aaa; margin-bottom:10px;">📍 Welcome, Balong!</div>
 
     <div id="s1" class="step active">
         <input type="text" id="cust-name" placeholder="Full Name (Required)">
         <input type="tel" id="cust-phone" placeholder="Mobile Number" maxlength="11">
         
-        <div id="menu-area" style="min-height: 200px; margin-top: 15px;">
-            </div>
+        <div id="menu-area" style="min-height: 200px; margin-top: 15px; border: 1px dashed #444; padding: 10px;">
+            <p style="text-align:center; color:#666;">Loading menu items...</p>
+        </div>
         
         <div style="background:#000; padding:15px; border-radius:12px; margin-top:15px; border-top:2px solid var(--red);">
             <div style="display:flex; justify-content:space-between; color:#aaa;"><span>Fee:</span> <span id="fee">₱50.00</span></div>
@@ -43,28 +43,24 @@
 
     <div id="s2" class="step">
         <h3 style="text-align:center;">GCASH PAYMENT</h3>
-        <div style="background:#fff; color:#000; padding:15px; border-radius:10px; text-align:center; font-weight:bold;">SEND TO: 09XX XXX XXXX<br>NAME: BALONG</div>
-        <input type="text" id="ref-no" placeholder="Enter 13-Digit Ref No." maxlength="13">
-        <button class="btn" onclick="startAIScan()">VERIFY & PLACE ORDER</button>
-        <button class="btn" style="background:#444;" onclick="nav('s1')">BACK TO MENU</button>
+        <div style="background:#fff; color:#000; padding:15px; border-radius:10px; text-align:center; font-weight:bold;">GCASH: 09XX XXX XXXX</div>
+        <input type="text" id="ref-no" placeholder="13-Digit Ref No." maxlength="13">
+        <button class="btn" onclick="startAIScan()">PLACE ORDER</button>
+        <button class="btn" style="background:#444;" onclick="nav('s1')">BACK</button>
     </div>
 
     <div id="s3" class="step" style="text-align:center; padding:60px 0;">
-        <h3 id="ai-title">AI SCANNING...</h3>
-        <p id="ai-desc">Verifying your receipt. Please wait.</p>
+        <h3 id="ai-title">PROCESSING...</h3>
+        <p id="ai-desc">Please wait.</p>
     </div>
 </div>
 
 <div id="modal">
     <div class="modal-content">
-        <h3 style="color:var(--red); text-align:center; margin-top:0;">ORDER SUMMARY</h3>
-        <div id="summary-list" style="max-height:200px; overflow-y:auto; font-size:0.9rem; margin-bottom:10px;"></div>
-        <div id="summary-total" style="text-align:right; font-weight:bold; font-size:1.2rem; color:var(--red); margin-bottom:15px;"></div>
-        <p style="text-align:center; font-size:0.7rem; color:#aaa;">CHOOSE DELIVERY METHOD:</p>
-        <button class="btn delivery-box" onclick="setDelivery('Balong’s Rider')">BALONG’S RIDER</button>
-        <button class="btn delivery-box" onclick="setDelivery('Lalamove App')">LALAMOVE APP</button>
-        <button class="btn delivery-box" onclick="setDelivery('Move-It App')">MOVE-IT APP</button>
-        <button class="btn" style="background:#444;" onclick="document.getElementById('modal').style.display='none';">EDIT ORDER</button>
+        <h3 style="color:var(--red); text-align:center;">ORDER SUMMARY</h3>
+        <div id="summary-list"></div>
+        <button class="btn" onclick="setDelivery('Standard')">CONFIRM ORDER</button>
+        <button class="btn" style="background:#444;" onclick="document.getElementById('modal').style.display='none';">CANCEL</button>
     </div>
 </div>
 
@@ -72,6 +68,45 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <script>
+    // 1. MENU DATA (Dito kumukuha ang website)
+    const menuData = {
+        "🍜 PARES KANTO": { "Pares w/ Rice": 85, "Regular Overload": 130, "Lechon Overload": 189 },
+        "🍱 COMBO": { "Combo Meal (2 Ulams)": 199 },
+        "🍳 SILOG": { "Liempo Silog": 129, "Bangus Silog": 129, "Chicken Silog": 129 },
+        "🍚 BUDBOD": { "Budbod Regular": 129, "Budbod Tapa": 199 },
+        "🥗 ALA CARTE": { "Sisig": 180, "Lechon Kawali": 170 },
+        "➕ ADD-ONS": { "Garlic Rice": 15, "Extra Egg": 20, "Bonemarrow": 95 }
+    };
+
+    let cart = {}, sub = 0, dFee = 50;
+
+    // 2. ANG FUNCTION NA NAGLALABAS NG MENU
+    function initMenu() {
+        const area = document.getElementById('menu-area');
+        area.innerHTML = ""; 
+        try {
+            for(let cat in menuData) {
+                area.innerHTML += `<div class="cat-label">${cat}</div>`;
+                for(let item in menuData[cat]) {
+                    cart[item] = 0;
+                    let cleanId = item.replace(/[^a-zA-Z0-9]/g, ''); 
+                    area.innerHTML += `
+                    <div class="item">
+                        <div><b>${item}</b><br>₱${menuData[cat][item]}</div>
+                        <div class="qty-area">
+                            <button class="qty-btn" onclick="changeQty('${item}', -1, ${menuData[cat][item]})">-</button> 
+                            <span id="q-${cleanId}" style="margin:0 10px;">0</span> 
+                            <button class="qty-btn" onclick="changeQty('${item}', 1, ${menuData[cat][item]})">+</button>
+                        </div>
+                    </div>`;
+                }
+            }
+        } catch(e) {
+            area.innerHTML = "<p style='color:red;'>Menu Error: " + e.message + "</p>";
+        }
+    }
+
+    // 3. FIREBASE SETUP
     const firebaseConfig = {
         apiKey: "AIzaSyBEkhDhIFcCltfr13S8XkZptaxxCjK_OMs",
         authDomain: "pares-ni-balong-749a0.firebaseapp.com",
@@ -82,116 +117,40 @@
         appId: "1:713855678812:web:1d943775f953cf3d336999"
     };
 
-    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
-    const db = firebase.database();
-
-    let dFee = 50, sub = 0, cart = {}, comboSelections = [], deliveryChoice = "";
-
-    const menuData = {
-        "🍜 PARES KANTO": { "Pares w/ Rice": 85, "Regular Overload": 130, "Lechon Overload": 189 },
-        "🍱 COMBO": { "Combo Meal (2 Ulams)": 199 },
-        "🍳 SILOG": { "Liempo Silog": 129, "Bangus Silog": 129, "Chicken Silog": 129 },
-        "🍚 BUDBOD": { "Budbod Regular": 129, "Budbod Tapa": 199 },
-        "🥗 ALA CARTE": { "Sisig": 180, "Lechon Kawali": 170 },
-        "➕ ADD-ONS": { "Garlic Rice": 15, "Extra Egg": 20, "Bonemarrow": 95 }
-    };
-
-    function detectGPS() {
-        initMenu(); // Siguradong lilitaw ang menu agad
-        navigator.geolocation.getCurrentPosition(p => { 
-            dFee = 40; 
-            document.getElementById('status-bar').innerText = "📍 GPS Connected (₱40.00)"; 
-            updateTotal(); 
-        }, () => { 
-            document.getElementById('status-bar').innerText = "⚠️ GPS Denied (Fee: ₱50.00)";
-            updateTotal(); 
-        });
-    }
-
-    function initMenu() {
-        const area = document.getElementById('menu-area');
-        area.innerHTML = ""; 
-        for(let cat in menuData) {
-            area.innerHTML += `<div class="cat-label">${cat}</div>`;
-            for(let item in menuData[cat]) {
-                cart[item] = 0;
-                let cleanId = item.replace(/[^a-zA-Z0-9]/g, ''); 
-                area.innerHTML += `
-                <div class="item">
-                    <div><b>${item}</b><br>₱${menuData[cat][item]}</div>
-                    <div class="qty-area">
-                        <button class="qty-btn" onclick="changeQty('${item}', -1, ${menuData[cat][item]})">-</button> 
-                        <span id="q-${cleanId}" style="margin: 0 10px; font-weight: bold;">0</span> 
-                        <button class="qty-btn" onclick="changeQty('${item}', 1, ${menuData[cat][item]})">+</button>
-                    </div>
-                </div>`;
-            }
+    // TAKBO AGAD ANG MENU PAGKABUKAS
+    window.onload = function() {
+        initMenu();
+        if (typeof firebase !== 'undefined') {
+            firebase.initializeApp(firebaseConfig);
+            console.log("Firebase Ready!");
+        } else {
+            alert("Firebase Script Error! Check internet or script links.");
         }
-    }
+    };
 
     function changeQty(name, val, price) {
         if (val === -1 && cart[name] <= 0) return;
-        if (name === "Combo Meal (2 Ulams)" && val === 1) {
-            let u1 = prompt("Choice 1:"); let u2 = prompt("Choice 2:");
-            if (!u1 || !u2) return; comboSelections.push(`${u1} + ${u2}`);
-        } else if (name === "Combo Meal (2 Ulams)" && val === -1) comboSelections.pop();
-        
-        cart[name] += val; 
-        sub += (val * price);
+        cart[name] += val; sub += (val * price);
         let cleanId = name.replace(/[^a-zA-Z0-9]/g, '');
         document.getElementById(`q-${cleanId}`).innerText = cart[name];
-        updateTotal();
+        document.getElementById('total').innerText = (sub + dFee).toFixed(2);
     }
 
-    function updateTotal() { 
-        document.getElementById('fee').innerText = "₱" + dFee.toFixed(2);
-        document.getElementById('total').innerText = (sub + dFee).toFixed(2); 
-    }
-
-    function showReview() {
-        if (sub === 0) return alert("Pumili muna ng order, Balong!");
-        let list = document.getElementById('summary-list'); list.innerHTML = "";
-        let cIdx = 0;
-        for(let i in cart) if(cart[i] > 0) {
-            let detail = (i === "Combo Meal (2 Ulams)") ? `<br><small style="color:yellow;">└─ ${comboSelections[cIdx++]}</small>` : "";
-            list.innerHTML += `<div style="margin-bottom:5px;">${cart[i]}x ${i}${detail}</div>`;
-        }
-        document.getElementById('summary-total').innerText = "Total: ₱" + (sub + dFee).toFixed(2);
-        document.getElementById('modal').style.display = 'flex';
-    }
-
-    function setDelivery(method) { deliveryChoice = method; nav('s2'); document.getElementById('modal').style.display = 'none'; }
     function nav(id) { document.querySelectorAll('.step').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-
+    function showReview() { if(sub === 0) return alert("Pili ka muna!"); document.getElementById('modal').style.display='flex'; }
+    function setDelivery(m) { nav('s2'); document.getElementById('modal').style.display='none'; }
+    
     function startAIScan() {
-        const name = document.getElementById('cust-name').value;
         const ref = document.getElementById('ref-no').value;
-        if(!name) return alert("Pakilagay ang pangalan.");
-        if(ref.length < 10) return alert("Pakilagay ang tamang Ref No.");
+        if(ref.length < 10) return alert("Invalid Ref No.");
         nav('s3');
-        setTimeout(() => saveOrder(ref), 3000);
-    }
-
-    function saveOrder(ref) {
         const id = "PB-" + Date.now().toString().slice(-6);
-        db.ref('orders/' + id).set({
-            name: document.getElementById('cust-name').value,
-            phone: document.getElementById('cust-phone').value || "N/A",
-            items: cart, combos: comboSelections, total: (sub+dFee).toFixed(2),
-            ref: ref, status: "pending", method: deliveryChoice, timestamp: firebase.database.ServerValue.TIMESTAMP
+        firebase.database().ref('orders/' + id).set({
+            name: document.getElementById('cust-name').value || "Guest",
+            items: cart, total: (sub+dFee).toFixed(2), ref: ref, status: "pending"
         }).then(() => {
-            document.getElementById('ai-title').innerText = "ORDER PLACED!";
-            document.getElementById('ai-desc').innerText = "Success! Hintayin ang pag-accept ni Balong.";
-            listenForStatus(id);
-        }).catch(err => alert("Error: " + err.message));
-    }
-
-    function listenForStatus(id) {
-        db.ref('orders/' + id).on('value', s => {
-            if(s.val() && s.val().status === 'accepted') {
-                document.getElementById('ai-title').innerText = "👨‍🍳 ACCEPTED!";
-                document.getElementById('ai-desc').innerText = "Lulutuin na ang order mo!";
-            }
+            document.getElementById('ai-title').innerText = "SENT!";
+            document.getElementById('ai-desc').innerText = "Order received by Balong.";
         });
     }
 </script>
