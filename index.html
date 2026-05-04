@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pares Ni Balong | AI QR Scanner</title>
+    <title>Pares Ni Balong | Fixed AI Scanner</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -11,18 +11,119 @@
         :root { --red: #e60000; --black: #000000; }
         body { background: var(--black); color: white; font-family: sans-serif; margin: 0; text-align: center; }
         .container { max-width: 450px; margin: auto; padding: 20px; }
-        #reader { width: 100%; border-radius: 15px; overflow: hidden; border: 2px solid var(--red); margin: 20px 0; display: none; background: #111; }
+        #reader { width: 100%; border-radius: 15px; overflow: hidden; border: 2px solid var(--red); margin: 20px 0; display: none; background: #111; min-height: 250px; }
         .btn { width: 100%; padding: 15px; background: var(--red); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
         .step { display: none; } .active { display: block; }
-        .item { background: #1a1a1a; padding: 15px; margin-bottom: 10px; border-radius: 10px; display: flex; justify-content: space-between; border: 1px solid #333; }
+        .instruction { background: #222; padding: 10px; border-radius: 8px; font-size: 0.8rem; margin-top: 10px; color: #bbb; }
     </style>
 </head>
 <body>
 
-<header style="background:var(--red); padding:15px; font-weight:bold;">🔴 PARES NI BALONG (AI SCANNER)</header>
+<header style="background:var(--red); padding:15px; font-weight:bold;">🔴 PARES NI BALONG</header>
 
 <div class="container">
     <div id="s1" class="step active">
-        <input type="text" id="cust-name" placeholder="Pangalan mo, Balong?" style="width:90%; padding:12px; margin-bottom:15px; border-radius:8px; border:none;">
-        <div id="menu-area">
-             <div class="item">
+        <h3>Order Muna, Balong!</h3>
+        <input type="text" id="cust-name" placeholder="Pangalan mo?" style="width:90%; padding:12px; margin-bottom:15px; border-radius:8px;">
+        <div style="background:#1a1a1a; padding:15px; border-radius:10px; border:1px solid #333;">
+            <p>Pares Overload - ₱130</p>
+            <button onclick="setOrder('Pares Overload', 130)" class="btn">PILIIN ITO</button>
+        </div>
+        <p>Total: ₱<span id="total-display">0</span></p>
+        <button class="btn" style="background:green;" onclick="nav('s2')">NEXT: SCAN GCASH</button>
+    </div>
+
+    <div id="s2" class="step">
+        <h3>SCAN GCASH QR</h3>
+        <p>Pakipindot ang button at i-ALLOW ang camera.</p>
+        
+        <div id="reader"></div> 
+        
+        <button class="btn" id="start-scan-btn" onclick="requestCamera()">📸 BUKSAN ANG CAMERA</button>
+        
+        <div class="instruction">
+            <b>Ayaw bumukas?</b><br>
+            1. I-click ang 🔒 (Lock icon) sa tabi ng URL.<br>
+            2. I-on ang "Camera" permission.
+        </div>
+        
+        <button class="btn" style="background:#444;" onclick="nav('s1')">BACK</button>
+    </div>
+
+    <div id="s3" class="step">
+        <h2 id="status-title">VERIFYING...</h2>
+        <p id="status-desc">Huwag isara ang app habang nag-scan.</p>
+    </div>
+</div>
+
+<script>
+    // FIREBASE CONFIG (Screenshot 1511)
+    const firebaseConfig = {
+        apiKey: "AIzaSyAd6k-rNXngAhebaKosSz9yh6XfHnZpIAs",
+        authDomain: "pares-ni-balong.firebaseapp.com",
+        databaseURL: "https://pares-ni-balong-default-rtdb.asia-southeast1.firebasedatabase.app/",
+        projectId: "pares-ni-balong",
+        storageBucket: "pares-ni-balong.firebasestorage.app",
+        messagingSenderId: "250075031311",
+        appId: "1:250075031311:web:8c4369113ea967e51c407a"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let currentOrder = "", currentTotal = 0, html5QrCode;
+
+    function setOrder(name, price) { currentOrder = name; currentTotal = price; document.getElementById('total-display').innerText = price; }
+    function nav(id) { document.querySelectorAll('.step').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+
+    // ETO ANG FIX PARA SA PERMISSION ERROR
+    async function requestCamera() {
+        try {
+            // Step 1: Manual permission request
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            stream.getTracks().forEach(track => track.stop()); // Stop preview track immediately after permission is granted
+
+            // Step 2: Start the QR Scanner
+            document.getElementById('reader').style.display = 'block';
+            document.getElementById('start-scan-btn').style.display = 'none';
+
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { fps: 15, qrbox: { width: 250, height: 250 } };
+
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                config,
+                (decodedText) => {
+                    html5QrCode.stop();
+                    submitToFirebase(decodedText);
+                },
+                (errorMessage) => { /* Scanning... */ }
+            ).catch(err => {
+                alert("Scan Error: " + err);
+            });
+
+        } catch (err) {
+            console.error(err);
+            alert("PERMISSION DENIED: Paki-allow po ang camera sa Site Settings (I-click ang lock icon sa taas).");
+        }
+    }
+
+    function submitToFirebase(qrData) {
+        nav('s3');
+        const id = "PB-" + Math.floor(1000 + Math.random() * 9000);
+        
+        db.ref('orders/' + id).set({
+            name: document.getElementById('cust-name').value || "Guest",
+            order: currentOrder,
+            total: currentTotal,
+            qr: qrData,
+            status: "Pending (Verified)",
+            time: Date.now()
+        }).then(() => {
+            document.getElementById('status-title').innerText = "ORDER SENT!";
+            document.getElementById('status-desc').innerText = "Hintayin ang pag-accept ni Balong. ID: " + id;
+        });
+    }
+</script>
+</body>
+</html>
