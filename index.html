@@ -3,82 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pares Ni Balong | Self-Scanning POS</title>
+    <title>Pares Ni Balong | AI QR Scanner</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         :root { --red: #e60000; --black: #000000; }
-        body { background: var(--black); color: white; font-family: sans-serif; text-align: center; }
-        .container { max-width: 400px; margin: auto; padding: 20px; }
-        #reader { width: 100%; border-radius: 15px; overflow: hidden; border: 2px solid var(--red); margin: 20px 0; display: none; }
+        body { background: var(--black); color: white; font-family: sans-serif; margin: 0; text-align: center; }
+        .container { max-width: 450px; margin: auto; padding: 20px; }
+        #reader { width: 100%; border-radius: 15px; overflow: hidden; border: 2px solid var(--red); margin: 20px 0; display: none; background: #111; }
         .btn { width: 100%; padding: 15px; background: var(--red); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
         .step { display: none; } .active { display: block; }
+        .item { background: #1a1a1a; padding: 15px; margin-bottom: 10px; border-radius: 10px; display: flex; justify-content: space-between; border: 1px solid #333; }
     </style>
 </head>
 <body>
 
-<header style="background:var(--red); padding:15px; font-weight:bold;">🔴 PARES NI BALONG</header>
+<header style="background:var(--red); padding:15px; font-weight:bold;">🔴 PARES NI BALONG (AI SCANNER)</header>
 
 <div class="container">
     <div id="s1" class="step active">
-        <h3>Welcome, Balong!</h3>
-        <p>Pili ka ng orders mo sa baba.</p>
-        <button class="btn" onclick="nav('s2')">PROCEED TO PAYMENT</button>
-    </div>
-
-    <div id="s2" class="step">
-        <h3>SCAN GCASH RECEIPT</h3>
-        <p>Itapat ang QR code ng resibo sa camera.</p>
-        
-        <div id="reader"></div> <button class="btn" id="start-btn" onclick="startScanner()">OPEN CAMERA SCANNER</button>
-        <button class="btn" style="background:#444;" onclick="nav('s1')">BACK</button>
-    </div>
-
-    <div id="s3" class="step">
-        <h2 id="status-title">PROCESSING...</h2>
-        <p id="status-desc">Verifying your payment, please wait.</p>
-    </div>
-</div>
-
-<script>
-    let html5QrCode;
-
-    function nav(id) {
-        document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-    }
-
-    function startScanner() {
-        document.getElementById('reader').style.display = 'block';
-        document.getElementById('start-btn').style.display = 'none';
-        
-        html5QrCode = new Html5Qrcode("reader");
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-        html5QrCode.start(
-            { facingMode: "environment" }, 
-            config,
-            (decodedText) => {
-                // SUCCESS: Nabasa ang QR!
-                html5QrCode.stop();
-                document.getElementById('reader').style.display = 'none';
-                submitOrder(decodedText);
-            },
-            (errorMessage) => { /* scanning... */ }
-        ).catch(err => alert("Camera Error: " + err));
-    }
-
-    function submitOrder(qrData) {
-        nav('s3');
-        
-        // Dito natin ise-send sa Google Sheets o Firebase
-        // Isasama natin yung 'qrData' bilang patunay ng bayad
-        console.log("Order Data Sent:", qrData);
-        
-        setTimeout(() => {
-            document.getElementById('status-title').innerText = "ORDER SENT!";
-            document.getElementById('status-desc').innerText = "Wait for Balong to accept your order.";
-        }, 2000);
-    }
-</script>
-</body>
-</html>
+        <input type="text" id="cust-name" placeholder="Pangalan mo, Balong?" style="width:90%; padding:12px; margin-bottom:15px; border-radius:8px; border:none;">
+        <div id="menu-area">
+             <div class="item">
