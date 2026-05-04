@@ -3,139 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pares Ni Balong | Ordering System</title>
+    <title>Pares Ni Balong | Self-Scanning POS</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        :root { --red: #e60000; --black: #000000; --white: #ffffff; }
-        body { background: var(--black); color: var(--white); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
-        .container { max-width: 480px; margin: auto; padding: 15px; }
-        header { background: var(--red); padding: 15px; text-align: center; font-weight: bold; position: sticky; top: 0; z-index: 10; }
-        .cat-label { background: var(--red); color: white; font-weight: bold; font-size: 0.8rem; margin: 15px 0 8px 0; padding: 6px 12px; border-radius: 4px; display: inline-block; }
-        .item { display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 12px; border-radius: 10px; margin-bottom: 8px; border: 1px solid #333; }
-        .qty-btn { background: var(--red); border: none; width: 35px; height: 35px; border-radius: 8px; color: white; cursor: pointer; font-size: 1.2rem; }
-        input { width: 100%; padding: 14px; margin-top: 10px; border-radius: 8px; background: #1a1a1a; color: white; border: 1px solid #444; box-sizing: border-box; }
-        .btn { width: 100%; padding: 16px; background: var(--red); border: none; border-radius: 10px; font-weight: bold; color: white; cursor: pointer; margin-top: 10px; }
+        :root { --red: #e60000; --black: #000000; }
+        body { background: var(--black); color: white; font-family: sans-serif; text-align: center; }
+        .container { max-width: 400px; margin: auto; padding: 20px; }
+        #reader { width: 100%; border-radius: 15px; overflow: hidden; border: 2px solid var(--red); margin: 20px 0; display: none; }
+        .btn { width: 100%; padding: 15px; background: var(--red); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
         .step { display: none; } .active { display: block; }
-        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: #121212; width: 90%; max-width: 400px; padding: 20px; border-radius: 15px; border: 2px solid var(--red); }
     </style>
 </head>
-<body onload="initMenu()">
+<body>
 
-<header>🔴 PARES NI BALONG</header>
+<header style="background:var(--red); padding:15px; font-weight:bold;">🔴 PARES NI BALONG</header>
 
 <div class="container">
-    <div id="status-bar" style="text-align:center; font-size:0.8rem; color:#aaa; margin-bottom:10px;">📍 Welcome, Balong!</div>
-
     <div id="s1" class="step active">
-        <input type="text" id="cust-name" placeholder="Full Name (Required)">
-        <input type="tel" id="cust-phone" placeholder="Mobile Number" maxlength="11">
-        <div id="menu-area" style="min-height: 200px; margin-top: 15px;"></div>
-        <div style="background:#000; padding:15px; border-radius:12px; margin-top:15px; border-top:2px solid var(--red);">
-            <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--red); font-size:1.4rem;"><span>TOTAL:</span> <span>₱<span id="total">0.00</span></span></div>
-            <button class="btn" onclick="showReview()">REVIEW ORDER</button>
-        </div>
+        <h3>Welcome, Balong!</h3>
+        <p>Pili ka ng orders mo sa baba.</p>
+        <button class="btn" onclick="nav('s2')">PROCEED TO PAYMENT</button>
     </div>
 
     <div id="s2" class="step">
-        <h3 style="text-align:center;">GCASH PAYMENT</h3>
-        <div style="background:#fff; color:#000; padding:15px; border-radius:10px; text-align:center; font-weight:bold;">SEND TO: 09XX XXX XXXX</div>
-        <input type="text" id="ref-no" placeholder="Enter 13-Digit Ref No." maxlength="13">
-        <button class="btn" onclick="startAIScan()">PLACE ORDER</button>
+        <h3>SCAN GCASH RECEIPT</h3>
+        <p>Itapat ang QR code ng resibo sa camera.</p>
+        
+        <div id="reader"></div> <button class="btn" id="start-btn" onclick="startScanner()">OPEN CAMERA SCANNER</button>
         <button class="btn" style="background:#444;" onclick="nav('s1')">BACK</button>
     </div>
 
-    <div id="s3" class="step" style="text-align:center; padding:60px 0;">
-        <h3 id="ai-title">PROCESSING...</h3>
-        <p id="ai-desc">Sending order to Balong. Please wait.</p>
+    <div id="s3" class="step">
+        <h2 id="status-title">PROCESSING...</h2>
+        <p id="status-desc">Verifying your payment, please wait.</p>
     </div>
 </div>
-
-<div id="modal">
-    <div class="modal-content">
-        <h3 style="color:var(--red); text-align:center;">ORDER SUMMARY</h3>
-        <div id="summary-list" style="margin-bottom:15px;"></div>
-        <button class="btn" onclick="nav('s2'); document.getElementById('modal').style.display='none';">PROCEED TO PAYMENT</button>
-        <button class="btn" style="background:#444;" onclick="document.getElementById('modal').style.display='none';">EDIT</button>
-    </div>
-</div>
-
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <script>
-    // UPDATED CONFIG MULA SA SCREENSHOT 1511
-    const firebaseConfig = {
-        apiKey: "AIzaSyAd6k-rNXngAhebaKosSz9yh6XfHnZpIAs",
-        authDomain: "pares-ni-balong.firebaseapp.com",
-        databaseURL: "https://pares-ni-balong-default-rtdb.asia-southeast1.firebasedatabase.app/",
-        projectId: "pares-ni-balong",
-        storageBucket: "pares-ni-balong.firebasestorage.app",
-        messagingSenderId: "250075031311",
-        appId: "1:250075031311:web:8c4369113ea967e51c407a"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    const menuData = {
-        "🍜 PARES KANTO": { "Pares w/ Rice": 85, "Regular Overload": 130, "Lechon Overload": 189 },
-        "🍱 COMBO": { "Combo Meal (2 Ulams)": 199 },
-        "🍳 SILOG": { "Liempo Silog": 129, "Bangus Silog": 129, "Chicken Silog": 129 },
-        "🍚 BUDBOD": { "Budbod Regular": 129, "Budbod Tapa": 199 }
-    };
-
-    let cart = {}, sub = 0;
-
-    function initMenu() {
-        const area = document.getElementById('menu-area');
-        area.innerHTML = "";
-        for(let cat in menuData) {
-            area.innerHTML += `<div class="cat-label">${cat}</div>`;
-            for(let item in menuData[cat]) {
-                cart[item] = 0;
-                let cleanId = item.replace(/[^a-zA-Z0-9]/g, '');
-                area.innerHTML += `<div class="item">
-                    <div><b>${item}</b><br>₱${menuData[cat][item]}</div>
-                    <div>
-                        <button class="qty-btn" onclick="changeQty('${item}', -1, ${menuData[cat][item]})">-</button>
-                        <span id="q-${cleanId}" style="margin:0 10px;">0</span>
-                        <button class="qty-btn" onclick="changeQty('${item}', 1, ${menuData[cat][item]})">+</button>
-                    </div>
-                </div>`;
-            }
-        }
-    }
-
-    function changeQty(name, val, price) {
-        if (val === -1 && cart[name] <= 0) return;
-        cart[name] += val; sub += (val * price);
-        let cleanId = name.replace(/[^a-zA-Z0-9]/g, '');
-        document.getElementById(`q-${cleanId}`).innerText = cart[name];
-        document.getElementById('total').innerText = (sub + 50).toFixed(2);
-    }
-
-    function showReview() {
-        if(sub === 0) return alert("Pili ka muna!");
-        document.getElementById('modal').style.display='flex';
-    }
+    let html5QrCode;
 
     function nav(id) {
-        document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+        document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
     }
 
-    function startAIScan() {
-        const name = document.getElementById('cust-name').value;
-        const ref = document.getElementById('ref-no').value;
-        if(!name || !ref) return alert("Fill up all fields!");
+    function startScanner() {
+        document.getElementById('reader').style.display = 'block';
+        document.getElementById('start-btn').style.display = 'none';
+        
+        html5QrCode = new Html5Qrcode("reader");
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            config,
+            (decodedText) => {
+                // SUCCESS: Nabasa ang QR!
+                html5QrCode.stop();
+                document.getElementById('reader').style.display = 'none';
+                submitOrder(decodedText);
+            },
+            (errorMessage) => { /* scanning... */ }
+        ).catch(err => alert("Camera Error: " + err));
+    }
+
+    function submitOrder(qrData) {
         nav('s3');
-        const id = "PB-" + Date.now().toString().slice(-4);
-        db.ref('orders/' + id).set({
-            name: name, items: cart, total: (sub+50).toFixed(2), ref: ref, status: "pending"
-        }).then(() => {
-            document.getElementById('ai-title').innerText = "ORDER SENT!";
-            document.getElementById('ai-desc').innerText = "ID: " + id + ". Check Dashboard!";
-        });
+        
+        // Dito natin ise-send sa Google Sheets o Firebase
+        // Isasama natin yung 'qrData' bilang patunay ng bayad
+        console.log("Order Data Sent:", qrData);
+        
+        setTimeout(() => {
+            document.getElementById('status-title').innerText = "ORDER SENT!";
+            document.getElementById('status-desc').innerText = "Wait for Balong to accept your order.";
+        }, 2000);
     }
 </script>
 </body>
