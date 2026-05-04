@@ -4,58 +4,58 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Balong Admin Dashboard</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
-        body { background: #000; color: #fff; font-family: sans-serif; padding: 10px; }
-        header { background: #e60000; padding: 15px; text-align: center; font-weight: bold; position: sticky; top: 0; }
-        .order-card { background: #1a1a1a; margin: 10px 0; padding: 15px; border-radius: 10px; border-left: 5px solid yellow; }
-        .order-card.accepted { border-left-color: #4caf50; opacity: 0.8; }
-        .btn { background: #4caf50; color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        body { background: #000; color: #fff; font-family: sans-serif; padding: 20px; }
+        header { background: #e60000; padding: 15px; text-align: center; font-weight: bold; margin-bottom: 20px; }
+        .order-card { background: #111; border: 1px solid #e60000; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+        .btn-accept { background: green; color: white; border: none; padding: 10px; width: 100%; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<header>🔴 BALONG ADMIN DASHBOARD</header>
-<div id="admin-list"></div>
+<header>BALONG ADMIN DASHBOARD</header>
+<div id="orders-list">Waiting for orders...</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <script>
     const firebaseConfig = {
-  apiKey: "AIzaSyAd6k-rNXngAhebaKosSz9yh6XfHnZpIAs",
-  authDomain: "pares-ni-balong.firebaseapp.com",
-  // Siguraduhing may asia-southeast1 dahil Singapore ang pinili mo
-  databaseURL: "https://pares-ni-balong-default-rtdb.asia-southeast1.firebasedatabase.app/",
-  projectId: "pares-ni-balong",
-  storageBucket: "pares-ni-balong.firebasestorage.app",
-  messagingSenderId: "250075031311",
-  appId: "1:250075031311:web:8c4369113ea967e51c407a",
-  measurementId: "G-53ZNSCQ97Y"
-};
+        apiKey: "AIzaSyAd6k-rNXngAhebaKosSz9yh6XfHnZpIAs",
+        authDomain: "pares-ni-balong.firebaseapp.com",
+        databaseURL: "https://pares-ni-balong-default-rtdb.asia-southeast1.firebasedatabase.app/",
+        projectId: "pares-ni-balong",
+        storageBucket: "pares-ni-balong.firebasestorage.app",
+        messagingSenderId: "250075031311",
+        appId: "1:250075031311:web:8c4369113ea967e51c407a"
+    };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    db.ref('orders').orderByChild('timestamp').on('value', snapshot => {
-        const list = document.getElementById('admin-list');
+    db.ref('orders').on('value', (snapshot) => {
+        const orders = snapshot.val();
+        const list = document.getElementById('orders-list');
         list.innerHTML = "";
-        snapshot.forEach(child => {
-            const o = child.val();
-            let itemsStr = "";
-            for(let name in o.items) if(o.items[name] > 0) itemsStr += `<div>${o.items[name]}x ${name}</div>`;
-            
-            list.innerHTML = `
-                <div class="order-card ${o.status}">
-                    <b>${o.name}</b> (${o.phone})<br>
-                    <div style="color:yellow; margin:8px 0;">${itemsStr} ${o.combos ? '<br>'+o.combos.join(', ') : ''}</div>
-                    <div style="font-weight:bold;">Total: ₱${o.total}</div>
-                    <div style="font-size:0.8rem; color:#888;">${o.method} | Ref: ${o.ref}</div>
-                    ${o.status === 'pending' ? `<button class="btn" onclick="accept('${child.key}')">ACCEPT ORDER</button>` : '<div style="color:green; margin-top:10px;">ACCEPTED</div>'}
-                </div>
-            ` + list.innerHTML;
-        });
+        if(!orders) return list.innerHTML = "No orders yet.";
+
+        for(let id in orders) {
+            const o = orders[id];
+            list.innerHTML += `
+                <div class="order-card">
+                    <h3>ID: ${id}</h3>
+                    <p><b>Customer:</b> ${o.name}</p>
+                    <p><b>Total:</b> ₱${o.total}</p>
+                    <p><b>Ref No:</b> ${o.ref}</p>
+                    <p><b>Status:</b> ${o.status}</p>
+                    ${o.status === 'pending' ? `<button class="btn-accept" onclick="accept('${id}')">ACCEPT ORDER</button>` : ''}
+                </div>`;
+        }
     });
 
-    function accept(id) { db.ref('orders/' + id).update({ status: 'accepted' }); }
+    function accept(id) {
+        db.ref('orders/' + id).update({ status: 'accepted' });
+    }
 </script>
 </body>
 </html>
