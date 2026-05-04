@@ -92,7 +92,15 @@
     let dFee = 0, sub = 0, cart = {}, deliveryChoice = "", comboSelections = [];
     const comboOptions = ["Lechon", "Liempo", "Bangus", "Chicken", "Chichabu", "Sisig", "Beef Tapa", "Tocino", "Longganisa", "Lumpiang Isda"];
 
-    const firebaseConfig = { apiKey: "AIzaSyBEkhDhIFcCltfr13S8XkZptaxxCjK_OMs", authDomain: "pares-ni-balong-749a0.firebaseapp.com", databaseURL: "https://pares-ni-balong-749a0-default-rtdb.firebaseio.com", projectId: "pares-ni-balong-749a0", storageBucket: "pares-ni-balong-749a0.firebasestorage.app", messagingSenderId: "713855678812", appId: "1:713855678812:web:44d46c08dd9dca1c336999" };
+    const firebaseConfig = { 
+        apiKey: "AIzaSyBEkhDhIFcCltfr13S8XkZptaxxCjK_OMs", 
+        authDomain: "pares-ni-balong-749a0.firebaseapp.com", 
+        databaseURL: "https://pares-ni-balong-749a0-default-rtdb.firebaseio.com", 
+        projectId: "pares-ni-balong-749a0", 
+        storageBucket: "pares-ni-balong-749a0.firebasestorage.app", 
+        messagingSenderId: "713855678812", 
+        appId: "1:713855678812:web:44d46c08dd9dca1c336999" 
+    };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
@@ -141,8 +149,8 @@
     function changeQty(name, val, price) {
         if (val === -1 && cart[name] <= 0) return;
         if (name === "Combo Meal (2 Ulam Choice)" && val === 1) {
-            let u1 = prompt("(1) Unang Ulam Choice:\n" + comboOptions.join(", "));
-            let u2 = prompt("(2) Pangalawang Ulam Choice:\n" + comboOptions.join(", "));
+            let u1 = prompt("(1) First Choice:\n" + comboOptions.join(", "));
+            let u2 = prompt("(2) Second Choice:\n" + comboOptions.join(", "));
             if (!u1 || !u2) return alert("Pumili ng (1) and (2)!");
             comboSelections.push(`(1) ${u1} + (2) ${u2}`);
         } else if (name === "Combo Meal (2 Ulam Choice)" && val === -1) comboSelections.pop();
@@ -161,7 +169,7 @@
             if(cart[i]>0) {
                 let detail = (i === "Combo Meal (2 Ulam Choice)") ? `<br><small style="color:yellow;">└─ ${comboSelections[comboCount]}</small>` : "";
                 if(i === "Combo Meal (2 Ulam Choice)") comboCount++;
-                list.innerHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>${cart[i]}x ${i}${detail}</span><span>₱${(cart[i]*getItemPrice(i)).toFixed(2)}</span></div>`;
+                list.innerHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;"><span><b>${cart[i]}x</b> ${i}${detail}</span><span>₱${(cart[i]*getItemPrice(i)).toFixed(2)}</span></div>`;
             }
         }
         document.getElementById('summary-total').innerText = "Total: ₱" + (sub + dFee).toFixed(2);
@@ -169,32 +177,55 @@
     }
 
     function getItemPrice(name) { for(let cat in menuData) if(menuData[cat][name]) return menuData[cat][name]; return 0; }
-    function confirmProceed() { deliveryChoice = confirm("Lalamove? (OK) | Balong's Rider (Cancel)") ? "Lalamove" : "Balong's Rider"; document.getElementById('modal').style.display='none'; nav('s2'); }
+    
+    function confirmProceed() { 
+        deliveryChoice = confirm("Lalamove? (OK) | Balong's Rider (Cancel)") ? "Lalamove" : "Balong's Rider"; 
+        document.getElementById('modal').style.display='none'; 
+        nav('s2'); 
+    }
 
     async function startAIScan() {
         const ref = document.getElementById('ref-no').value;
-        if(ref.length < 10 || !document.getElementById('receipt-file').files[0]) return alert("Kulang ang details!");
+        const file = document.getElementById('receipt-file').files[0];
+        if(ref.length < 10 || !file) return alert("Kulang ang details!");
         nav('s3');
         try {
             const worker = await Tesseract.createWorker('eng');
-            const { data: { text } } = await worker.recognize(document.getElementById('receipt-file').files[0]);
+            const { data: { text } } = await worker.recognize(file);
             await worker.terminate();
             saveOrder(ref, text.includes(ref) ? "Verified" : "Manual Check");
         } catch (e) { saveOrder(ref, "Scan Error"); }
     }
 
     function saveOrder(ref, ai) {
-        const id = "PB-" + Date.now().toString().slice(-4);
-        db.ref('orders/' + id).set({
-            name: document.getElementById('cust-name').value, phone: document.getElementById('cust-phone').value,
-            items: cart, combos: comboSelections, total: (sub+dFee).toFixed(2), ref: ref, status: "pending", method: deliveryChoice
+        const orderID = "PB-" + Date.now();
+        db.ref('orders/' + orderID).set({
+            name: document.getElementById('cust-name').value,
+            phone: document.getElementById('cust-phone').value,
+            items: cart,
+            combos: comboSelections,
+            total: (sub + dFee).toFixed(2),
+            ref: ref,
+            status: "pending",
+            method: deliveryChoice,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        }).then(() => {
+            listenForStatus(orderID);
         });
+    }
+
+    function listenForStatus(id) {
         db.ref('orders/' + id).on('value', s => {
-            if(s.val() && s.val().status === "accepted") {
-                document.getElementById('ai-title').innerText = "ORDER ACCEPTED!";
-                if(deliveryChoice === "Lalamove") document.getElementById('lalamove-area').innerHTML = `<button class="btn" onclick="window.location.href='https://www.lalamove.com/en-ph/'">🚀 BOOK LALAMOVE</button>`;
-                else document.getElementById('ai-desc').innerHTML = `Wait for the rider, call Balong at 09XXXXXXXXX to coordinate.`;
-                alert("Success! Order is being prepared.");
+            const data = s.val();
+            if(data && data.status === "accepted") {
+                document.getElementById('ai-title').innerText = "👨‍🍳 ORDER ACCEPTED!";
+                if(data.method === "Lalamove") {
+                    document.getElementById('ai-desc').innerText = "Order Accepted! I-book na ang Lalamove.";
+                    document.getElementById('lalamove-area').innerHTML = `<button class="btn" onclick="window.location.href='https://www.lalamove.com/en-ph/'">🚀 BOOK LALAMOVE</button>`;
+                } else {
+                    document.getElementById('ai-desc').innerHTML = `Successful! Wait for the rider and coordinate with Balong.<br><br><a href="tel:09XXXXXXXXX" style="color:var(--red); font-weight:bold; font-size:1.2rem; text-decoration:none;">📞 CALL BALONG NOW</a>`;
+                }
+                alert("Order Accepted! Check status.");
             }
         });
     }
