@@ -1,129 +1,28 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
+    <title>Pares ni Balong - Payment Verification</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pares Ni Balong | Fixed AI Scanner</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
-        :root { --red: #e60000; --black: #000000; }
-        body { background: var(--black); color: white; font-family: sans-serif; margin: 0; text-align: center; }
-        .container { max-width: 450px; margin: auto; padding: 20px; }
-        #reader { width: 100%; border-radius: 15px; overflow: hidden; border: 2px solid var(--red); margin: 20px 0; display: none; background: #111; min-height: 250px; }
-        .btn { width: 100%; padding: 15px; background: var(--red); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .step { display: none; } .active { display: block; }
-        .instruction { background: #222; padding: 10px; border-radius: 8px; font-size: 0.8rem; margin-top: 10px; color: #bbb; }
+        body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f4f4f4; }
+        .form-container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; }
+        button { background-color: #28a745; color: white; padding: 15px; border: none; width: 100%; border-radius: 5px; font-size: 16px; }
     </style>
 </head>
 <body>
-
-<header style="background:var(--red); padding:15px; font-weight:bold;">🔴 PARES NI BALONG</header>
-
-<div class="container">
-    <div id="s1" class="step active">
-        <h3>Order Muna, Balong!</h3>
-        <input type="text" id="cust-name" placeholder="Pangalan mo?" style="width:90%; padding:12px; margin-bottom:15px; border-radius:8px;">
-        <div style="background:#1a1a1a; padding:15px; border-radius:10px; border:1px solid #333;">
-            <p>Pares Overload - ₱130</p>
-            <button onclick="setOrder('Pares Overload', 130)" class="btn">PILIIN ITO</button>
-        </div>
-        <p>Total: ₱<span id="total-display">0</span></p>
-        <button class="btn" style="background:green;" onclick="nav('s2')">NEXT: SCAN GCASH</button>
+    <div class="form-container">
+        <h2>Pares ni Balong 🍲</h2>
+        <p>I-submit ang detalye ng iyong bayad:</p>
+        
+        <form action="https://formspree.io/f/YOUR_FORMSPREE_ID" method="POST">
+            <input type="text" name="name" placeholder="Pangalan ng Customer" required>
+            <input type="number" name="amount" placeholder="Magkano ang binayad (Amount)" required>
+            <input type="text" name="ref_no" placeholder="GCash Reference No." required>
+            
+            <p style="font-size: 12px; color: gray;">Siguraduhing tama ang Ref No. para sa mabilis na verification.</p>
+            <button type="submit">I-verify ang Bayad</button>
+        </form>
     </div>
-
-    <div id="s2" class="step">
-        <h3>SCAN GCASH QR</h3>
-        <p>Pakipindot ang button at i-ALLOW ang camera.</p>
-        
-        <div id="reader"></div> 
-        
-        <button class="btn" id="start-scan-btn" onclick="requestCamera()">📸 BUKSAN ANG CAMERA</button>
-        
-        <div class="instruction">
-            <b>Ayaw bumukas?</b><br>
-            1. I-click ang 🔒 (Lock icon) sa tabi ng URL.<br>
-            2. I-on ang "Camera" permission.
-        </div>
-        
-        <button class="btn" style="background:#444;" onclick="nav('s1')">BACK</button>
-    </div>
-
-    <div id="s3" class="step">
-        <h2 id="status-title">VERIFYING...</h2>
-        <p id="status-desc">Huwag isara ang app habang nag-scan.</p>
-    </div>
-</div>
-
-<script>
-    // FIREBASE CONFIG (Screenshot 1511)
-    const firebaseConfig = {
-        apiKey: "AIzaSyAd6k-rNXngAhebaKosSz9yh6XfHnZpIAs",
-        authDomain: "pares-ni-balong.firebaseapp.com",
-        databaseURL: "https://pares-ni-balong-default-rtdb.asia-southeast1.firebasedatabase.app/",
-        projectId: "pares-ni-balong",
-        storageBucket: "pares-ni-balong.firebasestorage.app",
-        messagingSenderId: "250075031311",
-        appId: "1:250075031311:web:8c4369113ea967e51c407a"
-    };
-
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    let currentOrder = "", currentTotal = 0, html5QrCode;
-
-    function setOrder(name, price) { currentOrder = name; currentTotal = price; document.getElementById('total-display').innerText = price; }
-    function nav(id) { document.querySelectorAll('.step').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-
-    // ETO ANG FIX PARA SA PERMISSION ERROR
-    async function requestCamera() {
-        try {
-            // Step 1: Manual permission request
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            stream.getTracks().forEach(track => track.stop()); // Stop preview track immediately after permission is granted
-
-            // Step 2: Start the QR Scanner
-            document.getElementById('reader').style.display = 'block';
-            document.getElementById('start-scan-btn').style.display = 'none';
-
-            html5QrCode = new Html5Qrcode("reader");
-            const config = { fps: 15, qrbox: { width: 250, height: 250 } };
-
-            html5QrCode.start(
-                { facingMode: "environment" }, 
-                config,
-                (decodedText) => {
-                    html5QrCode.stop();
-                    submitToFirebase(decodedText);
-                },
-                (errorMessage) => { /* Scanning... */ }
-            ).catch(err => {
-                alert("Scan Error: " + err);
-            });
-
-        } catch (err) {
-            console.error(err);
-            alert("PERMISSION DENIED: Paki-allow po ang camera sa Site Settings (I-click ang lock icon sa taas).");
-        }
-    }
-
-    function submitToFirebase(qrData) {
-        nav('s3');
-        const id = "PB-" + Math.floor(1000 + Math.random() * 9000);
-        
-        db.ref('orders/' + id).set({
-            name: document.getElementById('cust-name').value || "Guest",
-            order: currentOrder,
-            total: currentTotal,
-            qr: qrData,
-            status: "Pending (Verified)",
-            time: Date.now()
-        }).then(() => {
-            document.getElementById('status-title').innerText = "ORDER SENT!";
-            document.getElementById('status-desc').innerText = "Hintayin ang pag-accept ni Balong. ID: " + id;
-        });
-    }
-</script>
 </body>
 </html>
